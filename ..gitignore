@@ -1,0 +1,16 @@
+# Ignore virtual environments
+.venv/
+.venv64/
+__pycache__/
+*.pyc
+
+# Ignore system files
+.DS_Store
+
+git rm -r --cached .venv64
+
+git add .
+git commit -m "Removed large files and added .gitignore"
+git push -u origin main
+
+=
