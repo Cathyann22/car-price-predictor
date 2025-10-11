@@ -1,67 +1,95 @@
 import streamlit as st
 import pandas as pd
-import joblib
+import numpy as np
+import pickle
 import shap
 import matplotlib.pyplot as plt
 
-# --- Load model and optional preprocessor ---
-model = joblib.load("car_price_model.pkl")
-# Uncomment if you have a preprocessor
-# preprocessor = joblib.load("preprocessor.pkl")
+# -------------------------------
+# Load model and SHAP explainer
+# -------------------------------
+@st.cache_resource
+def load_model_and_explainer():
+    # Load trained model
+    with open("car_price_model.pkl", "rb") as f:
+        model = pickle.load(f)
 
-# --- Define brand encoding ---
-brand_options = ["Toyota", "BMW", "Mercedes", "Hyundai"]
-brand_encoding = {brand: idx for idx, brand in enumerate(brand_options)}
+    # Create a masker using dummy input (shape must match model input)
+    dummy_input = np.zeros((1, 4))  # 4 features: year, mileage, engine_size, luxury_mode
+    masker = shap.maskers.Independent(dummy_input)
 
-def main():
-    st.set_page_config(page_title="Car Price Predictor", layout="centered")
-    st.title("🚗 Car Price Prediction Dashboard")
-    st.write("Estimate your car's resale value with luxury mode and diagnostics.")
+    # Create SHAP explainer using model and masker
+    explainer = shap.Explainer(model, masker)
+    return model, explainer
 
-    # --- Input Section ---
-    st.subheader("🔧 Input Car Details")
-    selected_brand = st.selectbox("Select Car Brand", brand_options)
-    brand_encoded = brand_encoding[selected_brand]
+model, explainer = load_model_and_explainer()
 
-    year = st.slider("Year of Manufacture", 2000, 2025, 2015)
-    mileage = st.number_input("Mileage (in km)", min_value=0)
-    luxury_mode = st.selectbox("Luxury Mode", ["Yes", "No"])
-    luxury_flag = 1 if luxury_mode == "Yes" else 0
+# -------------------------------
+# App Title and Description
+# -------------------------------
+st.set_page_config(page_title="Car Price Predictor", layout="centered")
+st.title("🚗 Car Price Predictor with SHAP Insights")
+st.markdown("Estimate car prices and understand **why** with SHAP interpretability and luxury diagnostics.")
 
-    # --- Prediction Trigger ---
-    if st.button("🔍 Predict Price"):
-        # Create input DataFrame
-        sample_df = pd.DataFrame({
-            "brand": [brand_encoded],
-            "year": [year],
-            "mileage": [mileage],
-            "luxury_mode": [luxury_flag]
-        })
+# -------------------------------
+# User Inputs
+# -------------------------------
+st.header("🔧 Input Car Details")
+year = st.number_input("Year of Manufacture", min_value=1990, max_value=2025, value=2015)
+mileage = st.number_input("Mileage (in km)", min_value=0, max_value=500000, value=60000)
+engine_size = st.number_input("Engine Size (L)", min_value=0.5, max_value=8.0, value=2.0)
+luxury_mode = st.checkbox("Luxury Mode")
 
-        # Optional: Apply preprocessing
-        # processed_df = preprocessor.transform(sample_df)
-        # prediction_input = processed_df
-        prediction_input = sample_df  # if no preprocessor
+# -------------------------------
+# Prepare Input DataFrame
+# -------------------------------
+input_df = pd.DataFrame({
+    "year": [year],
+    "mileage": [mileage],
+    "engine_size": [engine_size],
+    "luxury_mode": [int(luxury_mode)]
+})
 
-        # --- Run Prediction ---
-        predicted_price = model.predict(prediction_input)[0]
-        st.metric("💰 Estimated Price", f"₹ {predicted_price:,.0f}")
+# -------------------------------
+# Prediction and Diagnostics
+# -------------------------------
+if st.button("🔮 Predict Price"):
+    try:
+        # Run prediction
+        prediction = model.predict(input_df)[0]
+        st.success(f"💰 Estimated Price: **${prediction:,.2f}**")
 
-        # --- SHAP Diagnostics ---
-        st.subheader("📊 Feature Importance (SHAP)")
-        explainer = shap.Explainer(model.predict, prediction_input)
-        shap_values = explainer(prediction_input)
+        # Luxury diagnostics
+        st.subheader("💎 Luxury Mode Diagnostics")
+        if luxury_mode:
+            st.info("Luxury mode is **enabled** — premium pricing applied.")
+        else:
+            st.warning("Luxury mode is **disabled** — base pricing used.")
 
-        fig, ax = plt.subplots()
-        shap.plots.bar(shap_values, show=False)
-        st.pyplot(fig)
+        # SHAP explanation
+        st.subheader("🔍 Feature Contributions (SHAP)")
+        shap_values = explainer(input_df)
 
-        # --- Error Segmentation Placeholder ---
-        st.subheader("🧪 Error Segmentation")
-        st.write("This section will show error clusters once test data is integrated.")
+        # Display SHAP values numerically
+        for name, value in zip(input_df.columns, shap_values.values[0]):
+            st.write(f"**{name}**: {value:+.2f}")
 
-if __name__ == "__main__":
-    main()
+        # SHAP waterfall plot
+        st.subheader("📊 SHAP Waterfall Plot")
+        try:
+            fig, ax = plt.subplots()
+            shap.plots.waterfall(shap_values[0], show=False)
+            st.pyplot(fig)
+        except Exception as plot_err:
+            st.warning(f"SHAP plot could not be rendered: {plot_err}")
+
+    except Exception as e:
+        st.error(f"Prediction failed: {e}")
+
+
+
+
+
 
 
 
