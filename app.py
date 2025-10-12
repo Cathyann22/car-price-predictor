@@ -1,14 +1,16 @@
 import streamlit as st
+import pandas as pd
+import numpy as np
 
-st.title("Car Price Predictor")
+st.title("🚗 Minimal Deployment Test")
+st.write("If you're seeing this, your app deployed successfully!")
 
-model_choice = st.selectbox("Choose a model", ["Linear", "XGBoost"])
-price_range = st.slider("Set price range", 0, 100000)
+df = pd.DataFrame({
+    "Brand": ["Toyota", "BMW", "Audi"],
+    "Price": [500000, 1200000, 1500000]
+})
+st.dataframe(df)
 
-if st.button("Predict"):
-    st.write(f"Running prediction with {model_choice} model for price range up to {price_range}")
 
-import shap
-import xgboost
 
 
