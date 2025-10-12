@@ -3,7 +3,10 @@ pandas==2.3.3
 numpy==2.3.3
 scikit-learn==1.7.2
 joblib==1.5.2
-shap==0.48.0
+shap==0.41.0
 matplotlib==3.10.6
 seaborn==0.13.2
-xgboost==2.1.1
+xgboost==1.7.6
+
+python-3.9
+
