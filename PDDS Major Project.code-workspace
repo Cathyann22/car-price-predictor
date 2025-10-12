@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"name": "PDDS Major Project",
+			"path": "."
+		}
+	],
+	"settings": {
+		"git.ignoreLimitWarning": true
+	}
+}

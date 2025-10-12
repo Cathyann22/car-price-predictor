@@ -1,4 +1,4 @@
-name: Deploy React App to GitHub Pages
+name: Deploy Streamlit App
 
 on:
   push:
@@ -6,26 +6,47 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          node-version: '18'
-
+          python-version: '3.10'
       - name: Install dependencies
-        run: npm install
+        run: |
+          pip install -r requirements.txt
+      - name: Run Streamlit
+        run: |
+          streamlit run app.py
+import streamlit as st
 
-      - name: Build React app
-        run: npm run build
+st.title("Car Price Predictor")
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build
+# Model selection
+model_choice = st.selectbox("Choose a model", ["Linear", "XGBoost"])
+
+# Price range slider
+price_range = st.slider("Set price range", 0, 100000)
+
+# Prediction trigger
+if st.button("Predict"):
+    st.write(f"Running prediction with {model_choice} model for price range up to {price_range}")
+
+# Dummy prediction logic
+if model_choice == "Linear":
+    predicted_price = price_range * 0.8
+else:
+    predicted_price = price_range * 0.9
+
+st.success(f"Predicted price: ${predicted_price:,.2f}")
+import joblib
+
+@st.cache_resource
+def load_model():
+    return joblib.load("car_price_model.pkl")
+
+model = load_model()
+
 
