@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 streamlit==1.50.0
 pandas==2.3.3
 numpy==1.24.4
@@ -7,6 +8,13 @@ shap==0.41.0
 matplotlib==3.10.6
 seaborn==0.13.2
 xgboost==1.7.6
+=======
+streamlit
+pandas
+numpy
+scikit-learn
+
+>>>>>>> 9ed05cb4 (Update requirements.txt)
 
 python-3.9
 
