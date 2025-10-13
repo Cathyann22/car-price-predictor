@@ -13,4 +13,5 @@ seaborn==0.12.2      # For enhanced statistical plots
 plotly==5.18.0       # For interactive visualizations
 
 
+pdfkit==1.0.0
 
