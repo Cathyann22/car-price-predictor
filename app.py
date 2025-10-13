@@ -66,50 +66,39 @@ st.write("If you're seeing this, your app deployed successfully!")
 
  # ✅ PIPELINE
 
-#  import required libraries
+#  Import required libraries
 import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
 import shap
 import matplotlib.pyplot as plt
+import tempfile
+from weasyprint import HTML
 
-# Load the trained pipeline (includes preprocessing + model)
+# ✅  Load the trained pipeline (includes preprocessing + model)
 pipeline = joblib.load("car_price_pipeline.pkl")
 
-# Configure Streamlit page
+# ✅ Configure Streamlit page
 st.set_page_config(page_title="Car Price Predictor", layout="wide")
-
 st.title("🚗 Car Price Prediction App")
-
 st.markdown("Use the sidebar to enter car details and estimate its market price.")
 
-# Sidebar: Input widgets for user data
+# ✅ Sidebar: Input widgets for user data
 with st.sidebar:
-    st.header(" Input Features")
+    st.header("🔧 Input Features")
 
-    # Dropdown for car brand — customized from dataset
     brand = st.selectbox("Brand", [
         "Maruti", "Hyundai", "Honda", "Toyota", "Volkswagen",
         "Ford", "Mahindra", "Tata", "BMW", "Audi", "Mercedes-Benz"
     ])
-
-    # Slider for car year
     year = st.slider("Year", min_value=2000, max_value=2025, value=2020)
-
-    # Numeric input for mileage
     mileage = st.number_input("Mileage (km)", min_value=0, max_value=500000, value=30000)
-
-    # Dropdown for fuel type
     fuel_type = st.selectbox("Fuel Type", ["Petrol", "Diesel", "CNG", "LPG", "Electric"])
-
-    # Dropdown for transmission type
     transmission = st.selectbox("Transmission", ["Manual", "Automatic"])
+    luxury_mode = st.checkbox("💎 Show SHAP diagnostics for luxury cars")
 
-    # Checkbox to enable SHAP diagnostics for luxury cars
-    luxury_mode = st.checkbox(" Show SHAP diagnostics for luxury cars")
-
-# Prepare input data as a single-row DataFrame
+# ✅  Prepare input data
 input_df = pd.DataFrame([{
     "Brand": brand,
     "Year": year,
@@ -118,31 +107,71 @@ input_df = pd.DataFrame([{
     "Transmission": transmission
 }])
 
-#  Prediction trigger
-if st.button("Predict Price"):
-    # Run prediction using the pipeline
-    predicted_price = pipeline.predict(input_df)[0]
-    st.success(f"Estimated Price: ₹{int(predicted_price):,}")
+# ✅  Create tabs for Prediction and Export
+tab1, tab2 = st.tabs(["📈 Prediction", "📄 Export Report"])
 
-    # SHAP diagnostics for luxury cars (price > ₹1,000,000)
-    if luxury_mode and predicted_price > 1_000_000:
-     st.subheader(" SHAP Explanation")
+# ✅ Tab 1: Prediction and SHAP diagnostics
+with tab1:
+    st.subheader("📈 Predict Car Price")
+    if st.button("Predict Price"):
+        predicted_price = pipeline.predict(input_df)[0]
+        st.success(f"Estimated Price: ₹{int(predicted_price):,}")
 
-     # Extract model and preprocessor from pipeline
-     model = pipeline.named_steps["model"]
-     preprocessor = pipeline.named_steps["preprocessor"]
+        # SHAP diagnostics for luxury cars
+        if luxury_mode and predicted_price > 1_000_000:
+            st.subheader("🔍 SHAP Explanation")
+            model = pipeline.named_steps["model"]
+            preprocessor = pipeline.named_steps["preprocessor"]
+            transformed_input = preprocessor.transform(input_df)
+            explainer = shap.Explainer(model, transformed_input)
+            shap_values = explainer(transformed_input)
+            fig, ax = plt.subplots()
+            shap.plots.waterfall(shap_values[0], max_display=10, show=False)
+            st.pyplot(fig)
 
-     # Transform input for SHAP
-      transformed_input = preprocessor.transform(input_df)
+# ✅ Tab 2: PDF Export
+with tab2:
+    st.subheader("📄 Generate PDF Report")
+    if st.button("🖨️ Export Prediction as PDF"):
+        html_content = f"""
+        <h1>Car Price Prediction Report</h1>
+        <p><strong>Brand:</strong> {brand}</p>
+        <p><strong>Year:</strong> {year}</p>
+        <p><strong>Mileage:</strong> {mileage} km</p>
+        <p><strong>Fuel Type:</strong> {fuel_type}</p>
+        <p><strong>Transmission:</strong> {transmission}</p>
+        <p><strong>Estimated Price:</strong> ₹{int(predicted_price):,}</p>
+        """
 
-      # Create SHAP explainer and compute values
-      explainer = shap.Explainer(model, transformed_input)
-      shap_values = explainer(transformed_input)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            HTML(string=html_content).write_pdf(tmp_file.name)
+            with open(tmp_file.name, "rb") as f:
+                st.download_button(
+                    label="📥 Download PDF",
+                    data=f.read(),
+                    file_name="car_price_report.pdf",
+                    mime="application/pdf"
+                )
 
-      # Plot SHAP waterfall chart
-      fig, ax = plt.subplots()
-      shap.plots.waterfall(shap_values[0], max_display=10, show=False)
-      st.pyplot(fig)
+# ✅ Deployment confirmation block
+
+st.title("🚗 Minimal Deployment Test")
+st.write("If you're seeing this, your app deployed successfully!")
+
+# ✅  Sample dataframe for visual confirmation
+df = pd.DataFrame({
+    "Brand": ["Toyota", "BMW", "Audi"],
+    "Price": [500000, 1200000, 1500000]
+})
+st.dataframe(df)
+
+
+
+
+#==========================================#===========================================
+
+
+
 
 
 
