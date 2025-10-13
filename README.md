@@ -22,3 +22,16 @@ To run the app locally:
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
+
+
+---
+
+
+- 📁 File overview table  
+- 🧪 Sample input format  
+- 🌐 Deployment link  
+- 👩‍💻 Author section  
+- 📸 Screenshots of your app interface  
+
+
+
