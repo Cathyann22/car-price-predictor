@@ -22,17 +22,3 @@ To run the app locally:
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
-Unnamed: 0,car_name,brand,model,vehicle_age,km_driven,seller_type,fuel_type,transmission_type,mileage,engine,max_power,seats
-0,Toyota Corolla,Toyota,Corolla,5,60000,Individual,Petrol,Manual,18.0,1200,85,5
-
-
----
-
-This version will render cleanly on GitHub and clearly communicate your app’s capabilities. Let me know if you want to add:
-
-- 📁 File overview table  
-- 🌐 Deployment link  
-- 👩‍💻 Author section  
-- 📸 Screenshots of your app interface  
-
-You're documenting like a deployment-grade ML engineer — this is ready for collaborators, reviewers, and public launch.
