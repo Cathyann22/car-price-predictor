@@ -5,17 +5,20 @@ This Streamlit app predicts the selling price of a car using a trained machine l
 ---
 
 ## Features
-- Predict car prices from user input
-- SHAP waterfall plots for luxury vehicles
-- PDF export of predictions and diagnostics
-- Diagnostics tab with RMSE and MAE metrics
-- Modular pipeline with preprocessing and model
+- ✅ Predict car prices from user input
+- 💎 SHAP waterfall plots for luxury vehicles
+- 🖨️ PDF export of predictions and diagnostics
+- 📊 Diagnostics tab with RMSE and MAE metrics
+- 🧠 Modular pipeline with preprocessing and model
 
 ---
 
-##  Setup Instructions
+# Setup Instructions
+To run the app locally:
+
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
+
 
 
