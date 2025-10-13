@@ -2,7 +2,7 @@
 # 🚗 Car Price Prediction App — Streamlit + Diagnostics
 # ============================================================
 
-# ✅ Import required libraries
+# 📦 Import required libraries
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -14,19 +14,75 @@ from weasyprint import HTML
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 # ============================================================
-#  ✅  Load trained pipeline
+# 🔮 Predict Car Price from Input
 # ============================================================
-pipeline = joblib.load("car_price_pipeline.pkl")
+
+def predict_price(pipeline, input_df):
+    """
+    Predicts the car price using the trained pipeline.
+    
+    Parameters:
+        pipeline (Pipeline): Trained ML pipeline with preprocessing and model
+        input_df (DataFrame): Single-row DataFrame with user input features
+    
+    Returns:
+        float: Predicted price in rupees
+    """
+    predicted_price = pipeline.predict(input_df)[0]
+    return predicted_price
 
 # ============================================================
-#  ✅  Configure Streamlit page
+# 📊 Evaluate Model on Hold-Out Test Set
+# ============================================================
+
+def evaluate_model_on_test_set(pipeline, X_test, y_test):
+    """
+    Evaluates model performance on hold-out test data.
+    
+    Parameters:
+        pipeline (Pipeline): Trained ML pipeline
+        X_test (DataFrame): Feature matrix for test set
+        y_test (array-like): True target values (log-transformed)
+    
+    Returns:
+        tuple: (y_pred, rmse, mae)
+            y_pred (array): Predicted prices (after inverse log transform)
+            rmse (float): Root Mean Squared Error
+            mae (float): Mean Absolute Error
+    """
+    expected_columns = [
+        'Unnamed: 0', 'car_name', 'brand', 'model', 'vehicle_age', 'km_driven',
+        'seller_type', 'fuel_type', 'transmission_type', 'mileage', 'engine',
+        'max_power', 'seats'
+    ]
+    X_test_aligned = X_test.copy()
+    for col in expected_columns:
+        if col not in X_test_aligned.columns:
+            X_test_aligned[col] = np.nan
+    X_test_aligned = X_test_aligned[expected_columns]
+
+    categorical_cols = ['brand', 'model', 'seller_type', 'fuel_type', 'transmission_type']
+    X_test_aligned[categorical_cols] = X_test_aligned[categorical_cols].astype(str)
+
+    y_pred_log = pipeline.predict(X_test_aligned)
+    y_pred = np.expm1(y_pred_log)
+
+    y_true = np.ravel(y_test)
+    y_pred = np.ravel(y_pred)
+    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+    mae = mean_absolute_error(y_true, y_pred)
+
+    return y_pred, rmse, mae
+
+# ============================================================
+# ⚙️ Configure Streamlit page
 # ============================================================
 st.set_page_config(page_title="Car Price Predictor", layout="wide")
 st.title("🚗 Car Price Prediction App")
 st.markdown("Use the sidebar to enter car details and estimate its market price.")
 
 # ============================================================
-#  ✅  Sidebar: Input widgets for user data
+# 🔧 Sidebar: Input widgets for user data
 # ============================================================
 with st.sidebar:
     st.header("🔧 Input Features")
@@ -52,20 +108,19 @@ input_df = pd.DataFrame([{
 }])
 
 # ============================================================
-#  ✅  Create tabs for Prediction, Export, and Diagnostics
+# 🗂️ Create tabs for Prediction, Export, and Diagnostics
 # ============================================================
-tab1, tab2, tab3 = st.tabs([" Prediction", "Export Report", " Diagnostics"])
+tab1, tab2, tab3 = st.tabs(["📈 Prediction", "📄 Export Report", "🧠 Diagnostics"])
 
 # ============================================================
-#  ✅ Tab 1: Prediction and SHAP diagnostics
+# 📈 Tab 1: Prediction and SHAP diagnostics
 # ============================================================
 with tab1:
     st.subheader("📈 Predict Car Price")
     if st.button("Predict Price"):
-        predicted_price = pipeline.predict(input_df)[0]
+        predicted_price = predict_price(pipeline, input_df)
         st.success(f"Estimated Price: ₹{int(predicted_price):,}")
 
-        # 🔍 SHAP diagnostics for luxury cars
         if luxury_mode and predicted_price > 1_000_000:
             st.subheader("🔍 SHAP Explanation")
             model = pipeline.named_steps["model"]
@@ -78,7 +133,7 @@ with tab1:
             st.pyplot(fig)
 
 # ============================================================
-# ✅  Tab 2: PDF Export of Prediction
+# 📄 Tab 2: PDF Export of Prediction
 # ============================================================
 with tab2:
     st.subheader("📄 Generate PDF Report")
@@ -103,39 +158,12 @@ with tab2:
                 )
 
 # ============================================================
-#  ✅  Model Diagnostics on Hold-Out Test Set
+# 🧠 Tab 3: Model Diagnostics on Hold-Out Test Set
 # ============================================================
-
-# Define expected columns from training
-expected_columns = [
-    'Unnamed: 0', 'car_name', 'brand', 'model', 'vehicle_age', 'km_driven',
-    'seller_type', 'fuel_type', 'transmission_type', 'mileage', 'engine',
-    'max_power', 'seats'
-]
-
-# T ✅ Try loading hold-out test data
 try:
     X_test = pd.read_csv("X_test.csv")
     y_test = pd.read_csv("y_test.csv").values.ravel()
 
-    # ✅ Function to align test data and evaluate model
-    def evaluate_model_on_test_set(pipeline, X_test, y_test):
-        X_test_aligned = X_test.copy()
-        for col in expected_columns:
-            if col not in X_test_aligned.columns:
-                X_test_aligned[col] = np.nan
-        X_test_aligned = X_test_aligned[expected_columns]
-        categorical_cols = ['brand', 'model', 'seller_type', 'fuel_type', 'transmission_type']
-        X_test_aligned[categorical_cols] = X_test_aligned[categorical_cols].astype(str)
-        y_pred_log = pipeline.predict(X_test_aligned)
-        y_pred = np.expm1(y_pred_log)
-        y_true = np.ravel(y_test)
-        y_pred = np.ravel(y_pred)
-        rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-        mae = mean_absolute_error(y_true, y_pred)
-        return y_pred, rmse, mae
-
-    #  ✅  Display diagnostics in tab
     with tab3:
         st.header("Model Diagnostics")
         y_pred, rmse, mae = evaluate_model_on_test_set(pipeline, X_test, y_test)
@@ -151,9 +179,9 @@ try:
         st.markdown("""
         **Interpretation Guide**  
         - ✅ Points near the red line: accurate predictions  
-        - ✅ Points far from the line: over/underestimation  
-        - ✅ RMSE penalizes large errors  
-        - ✅  MAE shows average error magnitude  
+        - ⚠️ Points far from the line: over/underestimation  
+        - 📉 RMSE penalizes large errors  
+        - 📌 MAE shows average error magnitude  
         """)
 
         st.image("shap_summary_plot.png", caption="Feature Importance (SHAP)", use_column_width=True)
@@ -164,13 +192,16 @@ except Exception as e:
         st.text(str(e))
 
 # ============================================================
-# Deployment Confirmation Block
+# 🚀 Deployment Confirmation Block
 # ============================================================
-st.title("Deployment Test")
+st.title("🚀 Deployment Test")
 st.write("If you're seeing this, your app deployed successfully!")
 
-# Sample dataframe for visual confirmation
 st.dataframe(pd.DataFrame({
     "Brand": ["Toyota", "BMW", "Audi"],
     "Price": [500000, 1200000, 1500000]
 }))
+
+       
+
+       
