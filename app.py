@@ -1,207 +1,110 @@
 # ============================================================
 # 🚗 Car Price Prediction App — Streamlit + Diagnostics
 # ============================================================
-
-# 📦 Import required libraries
+# ============================================================
+#  Imports
+# ============================================================
 import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
 import shap
 import matplotlib.pyplot as plt
-import tempfile
-from weasyprint import HTML
-from sklearn.metrics import mean_squared_error, mean_absolute_error
+from streamlit_shap import st_shap
 
 # ============================================================
-# 🔮 Predict Car Price from Input
-# ============================================================
-
-def predict_price(pipeline, input_df):
-    """
-    Predicts the car price using the trained pipeline.
-    
-    Parameters:
-        pipeline (Pipeline): Trained ML pipeline with preprocessing and model
-        input_df (DataFrame): Single-row DataFrame with user input features
-    
-    Returns:
-        float: Predicted price in rupees
-    """
-    predicted_price = pipeline.predict(input_df)[0]
-    return predicted_price
-
-# ============================================================
-# 📊 Evaluate Model on Hold-Out Test Set
-# ============================================================
-
-def evaluate_model_on_test_set(pipeline, X_test, y_test):
-    """
-    Evaluates model performance on hold-out test data.
-    
-    Parameters:
-        pipeline (Pipeline): Trained ML pipeline
-        X_test (DataFrame): Feature matrix for test set
-        y_test (array-like): True target values (log-transformed)
-    
-    Returns:
-        tuple: (y_pred, rmse, mae)
-            y_pred (array): Predicted prices (after inverse log transform)
-            rmse (float): Root Mean Squared Error
-            mae (float): Mean Absolute Error
-    """
-    expected_columns = [
-        'Unnamed: 0', 'car_name', 'brand', 'model', 'vehicle_age', 'km_driven',
-        'seller_type', 'fuel_type', 'transmission_type', 'mileage', 'engine',
-        'max_power', 'seats'
-    ]
-    X_test_aligned = X_test.copy()
-    for col in expected_columns:
-        if col not in X_test_aligned.columns:
-            X_test_aligned[col] = np.nan
-    X_test_aligned = X_test_aligned[expected_columns]
-
-    categorical_cols = ['brand', 'model', 'seller_type', 'fuel_type', 'transmission_type']
-    X_test_aligned[categorical_cols] = X_test_aligned[categorical_cols].astype(str)
-
-    y_pred_log = pipeline.predict(X_test_aligned)
-    y_pred = np.expm1(y_pred_log)
-
-    y_true = np.ravel(y_test)
-    y_pred = np.ravel(y_pred)
-    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-    mae = mean_absolute_error(y_true, y_pred)
-
-    return y_pred, rmse, mae
-
-# ============================================================
-# ⚙️ Configure Streamlit page
-# ============================================================
-st.set_page_config(page_title="Car Price Predictor", layout="wide")
-st.title("🚗 Car Price Prediction App")
-st.markdown("Use the sidebar to enter car details and estimate its market price.")
-
-# ============================================================
-# 🔧 Sidebar: Input widgets for user data
-# ============================================================
-with st.sidebar:
-    st.header("🔧 Input Features")
-    brand = st.selectbox("Brand", [
-        "Maruti", "Hyundai", "Honda", "Toyota", "Volkswagen",
-        "Ford", "Mahindra", "Tata", "BMW", "Audi", "Mercedes-Benz"
-    ])
-    year = st.slider("Year", min_value=2000, max_value=2025, value=2020)
-    mileage = st.number_input("Mileage (km)", min_value=0, max_value=500000, value=30000)
-    fuel_type = st.selectbox("Fuel Type", ["Petrol", "Diesel", "CNG", "LPG", "Electric"])
-    transmission = st.selectbox("Transmission", ["Manual", "Automatic"])
-    luxury_mode = st.checkbox("💎 Show SHAP diagnostics for luxury cars")
-
-# ============================================================
-# 🧾 Prepare input DataFrame for prediction
-# ============================================================
-input_df = pd.DataFrame([{
-    "Brand": brand,
-    "Year": year,
-    "Mileage": mileage,
-    "Fuel_Type": fuel_type,
-    "Transmission": transmission
-}])
-
-# ============================================================
-# 🗂️ Create tabs for Prediction, Export, and Diagnostics
-# ============================================================
-tab1, tab2, tab3 = st.tabs(["📈 Prediction", "📄 Export Report", "🧠 Diagnostics"])
-
-# ============================================================
-# 📈 Tab 1: Prediction and SHAP diagnostics
-# ============================================================
-with tab1:
-    st.subheader("📈 Predict Car Price")
-    if st.button("Predict Price"):
-        predicted_price = predict_price(pipeline, input_df)
-        st.success(f"Estimated Price: ₹{int(predicted_price):,}")
-
-        if luxury_mode and predicted_price > 1_000_000:
-            st.subheader("🔍 SHAP Explanation")
-            model = pipeline.named_steps["model"]
-            preprocessor = pipeline.named_steps["preprocessor"]
-            transformed_input = preprocessor.transform(input_df)
-            explainer = shap.Explainer(model, transformed_input)
-            shap_values = explainer(transformed_input)
-            fig, ax = plt.subplots()
-            shap.plots.waterfall(shap_values[0], max_display=10, show=False)
-            st.pyplot(fig)
-
-# ============================================================
-# 📄 Tab 2: PDF Export of Prediction
-# ============================================================
-with tab2:
-    st.subheader("📄 Generate PDF Report")
-    if st.button("🖨️ Export Prediction as PDF"):
-        html_content = f"""
-        <h1>Car Price Prediction Report</h1>
-        <p><strong>Brand:</strong> {brand}</p>
-        <p><strong>Year:</strong> {year}</p>
-        <p><strong>Mileage:</strong> {mileage} km</p>
-        <p><strong>Fuel Type:</strong> {fuel_type}</p>
-        <p><strong>Transmission:</strong> {transmission}</p>
-        <p><strong>Estimated Price:</strong> ₹{int(predicted_price):,}</p>
-        """
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-            HTML(string=html_content).write_pdf(tmp_file.name)
-            with open(tmp_file.name, "rb") as f:
-                st.download_button(
-                    label="📥 Download PDF",
-                    data=f.read(),
-                    file_name="car_price_report.pdf",
-                    mime="application/pdf"
-                )
-
-# ============================================================
-# 🧠 Tab 3: Model Diagnostics on Hold-Out Test Set
+# 🔧 Load Trained Pipeline
 # ============================================================
 try:
-    X_test = pd.read_csv("X_test.csv")
-    y_test = pd.read_csv("y_test.csv").values.ravel()
-
-    with tab3:
-        st.header("Model Diagnostics")
-        y_pred, rmse, mae = evaluate_model_on_test_set(pipeline, X_test, y_test)
-
-        st.subheader("Sample Predictions")
-        for i in range(min(5, len(y_pred))):
-            st.write(f"Sample {i+1}: ₹{y_pred[i]:,.2f}")
-
-        st.subheader("Evaluation Metrics")
-        st.metric("RMSE", f"₹{rmse:,.0f}")
-        st.metric("MAE", f"₹{mae:,.0f}")
-
-        st.markdown("""
-        **Interpretation Guide**  
-        - ✅ Points near the red line: accurate predictions  
-        - ⚠️ Points far from the line: over/underestimation  
-        - 📉 RMSE penalizes large errors  
-        - 📌 MAE shows average error magnitude  
-        """)
-
-        st.image("shap_summary_plot.png", caption="Feature Importance (SHAP)", use_column_width=True)
-
-except Exception as e:
-    with tab3:
-        st.warning("Diagnostics unavailable — test data not found or improperly formatted.")
-        st.text(str(e))
+    pipeline = joblib.load("best_random_forest_pipeline.pkl")
+    feature_list = joblib.load("model_features.pkl")
+except FileNotFoundError:
+    st.error("❌ Model file not found. Please check your path or retrain the model.")
+    st.stop()
 
 # ============================================================
-# 🚀 Deployment Confirmation Block
+# 🏷️ App Title
 # ============================================================
-st.title("🚀 Deployment Test")
-st.write("If you're seeing this, your app deployed successfully!")
+st.title("🚗 Car Price Prediction App")
 
-st.dataframe(pd.DataFrame({
-    "Brand": ["Toyota", "BMW", "Audi"],
-    "Price": [500000, 1200000, 1500000]
-}))
+# ============================================================
+# 📋 Sidebar Inputs
+# ============================================================
+st.sidebar.header("Enter Car Details")
 
-       
+engine = st.sidebar.number_input("Engine (cc)", min_value=500, max_value=5000, value=1500)
+max_power = st.sidebar.number_input("Max Power (bhp)", min_value=20, max_value=500, value=100)
+vehicle_age = st.sidebar.slider("Vehicle Age (years)", 0, 30, value=5)
+fuel_type = st.sidebar.selectbox("Fuel Type", ['Petrol', 'Diesel', 'CNG', 'LPG', 'Electric'])
+transmission_type = st.sidebar.selectbox("Transmission", ['Manual', 'Automatic'])
+seller_type = st.sidebar.selectbox("Seller Type", ['Dealer', 'Individual', 'Trustmark Dealer'])
+brand = st.sidebar.selectbox("Brand", ['Maruti', 'Hyundai', 'Honda', 'Toyota', 'BMW', 'Audi'])
 
-       
+# ============================================================
+# 🎯 Prediction Trigger
+# ============================================================
+if st.sidebar.button("Predict Price"):
+
+    # ✅ Prepare input
+    input_dict = {
+        'engine': engine,
+        'max_power': max_power,
+        'vehicle_age': vehicle_age,
+        'fuel_type': fuel_type,
+        'transmission_type': transmission_type,
+        'seller_type': seller_type,
+        'brand': brand
+    }
+    input_df = pd.DataFrame([input_dict])
+
+    # ✅ Align input with training features
+    try:
+        input_aligned = input_df[feature_list]
+    except KeyError as e:
+        st.error(f"❌ Input alignment failed: {e}")
+        st.stop()
+
+    # ✅ Predict log price and convert to actual price
+    try:
+        log_price = pipeline.predict(input_aligned)[0]
+        predicted_price = np.expm1(log_price)
+    except Exception as e:
+        st.error(f"❌ Prediction failed: {e}")
+        st.stop()
+
+    # ============================================================
+    # 🧭 Tabs for Prediction & Diagnostics
+    # ============================================================
+    tab1, tab2, tab3 = st.tabs(["🔮 Prediction", "💎 SHAP Audit", "📊 Global Summary"])
+
+    # Prediction Output
+    with tab1:
+        st.subheader("Estimated Price")
+        st.success(f"Your {input_dict['brand']} is valued at **₹ {predicted_price:,.0f}**")
+
+    # 💎 Tab 2: SHAP Force Plot (Local)
+    with tab2:
+        st.subheader("🔍 Feature Impact (SHAP)")
+        try:
+            transformed_input = pipeline.named_steps["preprocessor"].transform(input_aligned)
+            model = pipeline.named_steps["model"]
+            explainer = shap.TreeExplainer(model)
+            shap_values = explainer.shap_values(transformed_input)
+
+            st_shap(shap.force_plot(
+                explainer.expected_value,
+                shap_values[0],
+                features=input_aligned,
+                matplotlib=False
+            ))
+        except Exception as e:
+            st.warning(f"SHAP force plot failed: {e}")
+
+    # 📊 Tab 3: SHAP Summary Plot (Global)
+    with tab3:
+        st.subheader("Global Feature Importance")
+        try:
+            st.image("shap_summary.png", caption="SHAP Summary Plot", use_column_width=True)
+        except Exception as e:
+            st.warning(f"SHAP summary plot unavailable: {e}")
+
