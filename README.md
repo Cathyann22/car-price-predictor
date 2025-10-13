@@ -13,12 +13,14 @@ This Streamlit app predicts the selling price of a car using a trained machine l
 
 ---
 
-# Setup Instructions
+## Setup Instructions
+
 To run the app locally:
 
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
+
 
 
 
