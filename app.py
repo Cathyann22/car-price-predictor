@@ -2,7 +2,7 @@
 # 🚗 Car Price Prediction App — Streamlit + Diagnostics
 # ============================================================
 
-#  Imports
+# 📦 Imports
 # ============================================================
 import streamlit as st
 import pandas as pd
@@ -12,7 +12,6 @@ import shap
 import matplotlib.pyplot as plt
 from streamlit_shap import st_shap
 
-# ============================================================
 # 🔧 Load Trained Pipeline
 # ============================================================
 try:
@@ -22,12 +21,10 @@ except FileNotFoundError:
     st.error("❌ Model file not found. Please check your path or retrain the model.")
     st.stop()
 
-# ============================================================
 # 🏷️ App Title
 # ============================================================
 st.title("🚗 Car Price Prediction App")
 
-# ============================================================
 # 📋 Sidebar Inputs
 # ============================================================
 st.sidebar.header("Enter Car Details")
@@ -40,7 +37,6 @@ transmission_type = st.sidebar.selectbox("Transmission", ['Manual', 'Automatic']
 seller_type = st.sidebar.selectbox("Seller Type", ['Dealer', 'Individual', 'Trustmark Dealer'])
 brand = st.sidebar.selectbox("Brand", ['Maruti', 'Hyundai', 'Honda', 'Toyota', 'BMW', 'Audi'])
 
-# ============================================================
 # 🎯 Prediction Trigger
 # ============================================================
 if st.sidebar.button("Predict Price"):
@@ -72,7 +68,6 @@ if st.sidebar.button("Predict Price"):
         st.error(f"❌ Prediction failed: {e}")
         st.stop()
 
-    # ============================================================
     # 🧭 Tabs for Prediction & Diagnostics
     # ============================================================
     tab1, tab2, tab3 = st.tabs(["🔮 Prediction", "💎 SHAP Audit", "📊 Global Summary"])
@@ -108,4 +103,6 @@ if st.sidebar.button("Predict Price"):
         except Exception as e:
             st.warning(f"SHAP summary plot unavailable: {e}")
 
-   
+
+    
+            
