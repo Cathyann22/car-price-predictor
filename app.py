@@ -1,7 +1,7 @@
 # ============================================================
 # 🚗 Car Price Prediction App — Streamlit + Diagnostics
 # ============================================================
-# ============================================================
+
 #  Imports
 # ============================================================
 import streamlit as st
@@ -77,7 +77,7 @@ if st.sidebar.button("Predict Price"):
     # ============================================================
     tab1, tab2, tab3 = st.tabs(["🔮 Prediction", "💎 SHAP Audit", "📊 Global Summary"])
 
-    # Prediction Output
+    # 🔮 Tab 1: Prediction Output
     with tab1:
         st.subheader("Estimated Price")
         st.success(f"Your {input_dict['brand']} is valued at **₹ {predicted_price:,.0f}**")
@@ -108,3 +108,4 @@ if st.sidebar.button("Predict Price"):
         except Exception as e:
             st.warning(f"SHAP summary plot unavailable: {e}")
 
+   
