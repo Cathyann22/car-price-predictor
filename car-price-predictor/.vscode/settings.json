@@ -1,0 +1,17 @@
+{
+  "editor.fontFamily": "arial",
+  "editor.fontLigatures": false,
+  "editor.minimap.sectionHeaderFontSize": 12,
+
+  "terminal.integrated.fontFamily": "Courier New",
+  "terminal.integrated.fontSize": 14,
+  "terminal.integrated.fontWeight": "normal",
+
+  "python.analysis.typeCheckingMode": "off",
+  "python.analysis.autoSearchPaths": true,
+  "python.analysis.useLibraryCodeForTypes": true,
+  "python.languageServer": "Pylance"
+}
+
+
+
