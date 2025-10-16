@@ -1,8 +1,7 @@
-# ============================================================
 # 🚗 Car Price Prediction App — Streamlit + Diagnostics
 # ============================================================
 
-# 📦 Imports
+# Imports
 # ============================================================
 import streamlit as st
 import pandas as pd
@@ -12,7 +11,7 @@ import shap
 import matplotlib.pyplot as plt
 from streamlit_shap import st_shap
 
-# 🔧 Load Trained Pipeline
+# Load Trained Pipeline
 # ============================================================
 try:
     pipeline = joblib.load("best_random_forest_pipeline.pkl")
@@ -37,7 +36,7 @@ transmission_type = st.sidebar.selectbox("Transmission", ['Manual', 'Automatic']
 seller_type = st.sidebar.selectbox("Seller Type", ['Dealer', 'Individual', 'Trustmark Dealer'])
 brand = st.sidebar.selectbox("Brand", ['Maruti', 'Hyundai', 'Honda', 'Toyota', 'BMW', 'Audi'])
 
-# 🎯 Prediction Trigger
+# Prediction Trigger
 # ============================================================
 if st.sidebar.button("Predict Price"):
 
@@ -68,16 +67,16 @@ if st.sidebar.button("Predict Price"):
         st.error(f"❌ Prediction failed: {e}")
         st.stop()
 
-    # 🧭 Tabs for Prediction & Diagnostics
+    # abs for Prediction & Diagnostics
     # ============================================================
     tab1, tab2, tab3 = st.tabs(["🔮 Prediction", "💎 SHAP Audit", "📊 Global Summary"])
 
-    # 🔮 Tab 1: Prediction Output
+    # Prediction Output
     with tab1:
         st.subheader("Estimated Price")
         st.success(f"Your {input_dict['brand']} is valued at **₹ {predicted_price:,.0f}**")
 
-    # 💎 Tab 2: SHAP Force Plot (Local)
+    # SHAP Force Plot (Local)
     with tab2:
         st.subheader("🔍 Feature Impact (SHAP)")
         try:
@@ -95,14 +94,10 @@ if st.sidebar.button("Predict Price"):
         except Exception as e:
             st.warning(f"SHAP force plot failed: {e}")
 
-    # 📊 Tab 3: SHAP Summary Plot (Global)
+    # Summary Plot (Global)
     with tab3:
         st.subheader("Global Feature Importance")
         try:
             st.image("shap_summary.png", caption="SHAP Summary Plot", use_column_width=True)
         except Exception as e:
             st.warning(f"SHAP summary plot unavailable: {e}")
-
-
-    
-            
