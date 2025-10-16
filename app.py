@@ -1,5 +1,5 @@
 # 🚗 Car Price Prediction App — Streamlit + Diagnostics
-# ============================================================
+
 
 # Imports
 # ============================================================
@@ -101,4 +101,3 @@ if st.sidebar.button("Predict Price"):
             st.image("shap_summary.png", caption="SHAP Summary Plot", use_column_width=True)
         except Exception as e:
             st.warning(f"SHAP summary plot unavailable: {e}")
-
