@@ -4,7 +4,10 @@ import numpy as np
 import joblib
 import shap
 import matplotlib.pyplot as plt
+from fpdf import FPDF  # ✅ PDF export
+from streamlit_shap import st_shap  # ✅ SHAP visual support
 
+# Load model and features
 pipeline = joblib.load("random_forest_best_pipeline.joblib")
 feature_list = joblib.load("model_features.pkl")
 
@@ -12,6 +15,7 @@ st.set_page_config(page_title="Car Price Predictor", layout="wide")
 st.title("🚗 Car Price Prediction Dashboard")
 st.markdown("Upload car details to predict selling price and audit model decisions using SHAP.")
 
+# Sidebar input form
 with st.sidebar.form("car_input_form"):
     st.subheader("Enter Car Details")
     input_data = {}
@@ -24,6 +28,7 @@ with st.sidebar.form("car_input_form"):
             input_data[feature] = st.number_input(f"{feature.title()}", value=0.0)
     submitted = st.form_submit_button("Predict Price")
 
+# Prediction and SHAP audit
 if submitted:
     input_df = pd.DataFrame([input_data])
     input_df = input_df.reindex(columns=feature_list, fill_value=np.nan)
@@ -61,10 +66,30 @@ if submitted:
     )
     st.pyplot(fig)
 
-fpdf
+    # PDF export
+    def generate_pdf(price, input_data):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        pdf.cell(200, 10, txt="Car Price Prediction Report", ln=True, align='C')
+        pdf.ln(10)
+        pdf.cell(200, 10, txt=f"Predicted Selling Price: ₹{price:,.0f}", ln=True)
+        pdf.ln(10)
+        pdf.cell(200, 10, txt="Input Features:", ln=True)
+        for key, value in input_data.items():
+            pdf.cell(200, 10, txt=f"{key.title()}: {value}", ln=True)
+        pdf.output("prediction_report.pdf")
 
-generate_pdf(price, input_data)
-ModuleNotFoundError: This app has encountered an error. The original error message is redacted to prevent data leaks. Full error details have been recorded in the logs (if you're on Streamlit Cloud, click on 'Manage app' in the lower right of your app).
-Traceback:
-File "/mount/src/car-price-predictor/app.py", line 12, in <module>
-    from streamlit_shap import st_shap
+        with open("prediction_report.pdf", "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+        href = f'<a href="data:application/pdf;base64,{base64_pdf}" download="prediction_report.pdf">📄 Download PDF Report</a>'
+        st.markdown(href, unsafe_allow_html=True)
+
+    generate_pdf(price, input_data)
+
+# Optional: PDF loader
+with st.sidebar.expander("📤 Load PDF Report"):
+    uploaded_pdf = st.file_uploader("Upload a prediction report", type=["pdf"])
+    if uploaded_pdf:
+        st.success("PDF uploaded successfully!")
+        st.download_button("Download again", uploaded_pdf, file_name="uploaded_report.pdf")
