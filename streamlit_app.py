@@ -1,6 +1,7 @@
 # ==================================================
 # ✅ FULL STREAMLIT PREDICTION + SHAP + PDF EXPORT
 #=================================================
+
 # -----------------------
 # IMPORTS
 # -----------------------
@@ -30,8 +31,9 @@ st.markdown("""
 .insight {background-color: #e8f5e9; padding: 10px; border-left: 5px solid #43a047; margin-bottom: 10px;}
 </style>
 """, unsafe_allow_html=True)
+
 st.title("🚗 Car Price Predictor")
-st.markdown("Predict car prices using a trained Random Forest model with SHAP explanations and PDF export.")
+st.markdown("Predict car prices using a trained **Random Forest** model with **SHAP explainability** and **automated PDF reporting**.")
 
 # -----------------------
 # DEFINE FEATURES & TARGET
@@ -70,7 +72,7 @@ if missing_cols:
 
 # Clean data & transform target
 df = df.dropna(subset=features + [target])
-df['log_price'] = np.log1p(df[target])
+df['log_price'] = np.log1p(df[target])  # log-transform for normality
 
 X = df[features]
 y = df['log_price']
@@ -114,29 +116,24 @@ features_path = Path("models/log_rf_features.pkl")
 
 with open(pipeline_path, "wb") as f:
     pickle.dump(pipeline, f)
-
 with open(features_path, "wb") as f:
     pickle.dump(features, f)
 
-st.success(f"✅ Pipeline saved: `{pipeline_path}`")
-st.success(f"✅ Feature list saved: `{features_path}`")
-
 # -----------------------
-# LOAD PIPELINE & FEATURES 
+# SAFE LOAD PIPELINE
 # -----------------------
 def load_pipeline_and_features():
-    if not pipeline_path.exists() or pipeline_path.stat().st_size == 0 \
-       or not features_path.exists() or features_path.stat().st_size == 0:
-        st.error("❌ Pipeline or features file missing or empty. Please retrain your model.")
+    if not pipeline_path.exists() or not features_path.exists():
+        st.error("❌ Missing trained model. Please retrain.")
         return None, []
     try:
         with open(pipeline_path, "rb") as f:
-            pipeline_loaded = pickle.load(f)
+            pipe = pickle.load(f)
         with open(features_path, "rb") as f:
-            features_loaded = pickle.load(f)
-        return pipeline_loaded, features_loaded
+            feats = pickle.load(f)
+        return pipe, feats
     except Exception as e:
-        st.error(f"❌ Failed to load pipeline or features: {e}")
+        st.error(f"⚠️ Load failed: {e}")
         return None, []
 
 pipeline, feature_list = load_pipeline_and_features()
@@ -146,7 +143,7 @@ if pipeline is None or not feature_list:
 # -----------------------
 # USER INPUT FORM
 # -----------------------
-st.subheader("Enter Car Details")
+st.subheader("🧾 Enter Car Details for Prediction")
 input_data = {}
 submitted = False
 
@@ -166,35 +163,36 @@ with st.form("car_input_form"):
     submitted = st.form_submit_button("🔮 Predict Price")
 
 # -----------------------
-# PREDICTION, SHAP, PDF & INSIGHTS
+# PREDICTION + SHAP + INSIGHTS
 # -----------------------
 if submitted:
     try:
         input_df = pd.DataFrame([input_data])
 
-        # Validate numeric inputs
-        if all(v == 0 for k,v in input_data.items() if isinstance(v,(int,float))):
-            st.warning("⚠️ Please enter realistic numeric values.")
+        # ✅ Validate numeric realism
+        if all(v == 0 for k, v in input_data.items() if isinstance(v, (int, float))):
+            st.warning("⚠️ Please enter realistic numeric values before predicting.")
             st.stop()
 
-        # Predict log price and invert
+        # ✅ Predict
         log_pred = pipeline.predict(input_df)
         price_pred = np.expm1(log_pred)
-        st.success(f"**Predicted Selling Price:** INR {price_pred[0]:,.0f}")
+        st.success(f"**Predicted Selling Price:** ₹{price_pred[0]:,.0f}")
 
-        # -----------------------
-        # 💎 Luxury Mode Highlight
-        # -----------------------
+        # 💎 Luxury Mode
         luxury_brands = ["BMW", "Audi", "Mercedes", "Porsche", "Jaguar"]
         brand_input = input_data.get("brand", "").strip().title()
         if brand_input in luxury_brands:
-            st.markdown(
-                "<div class='luxury'>🌟 <b>Luxury Mode:</b> High-end vehicle detected — prediction variance may increase.</div>",
-                unsafe_allow_html=True
-            )
+            st.markdown("<div class='luxury'>", unsafe_allow_html=True)
+            st.markdown(f"""
+            ### 🌟 Luxury Mode Activated for {brand_input}
+            - Luxury cars often have **high variance** in prices due to custom features and limited production.
+            - Predictions for these vehicles may be **less stable**, so interpret with SHAP diagnostics below.
+            """, unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
         # -----------------------
-        # Model metrics
+        # MODEL PERFORMANCE METRICS
         # -----------------------
         st.subheader("📈 Model Confidence Metrics")
         r2_score_val = 0.916
@@ -202,66 +200,73 @@ if submitted:
         mae_val = 110_246
 
         st.markdown(f"- **R² Score:** {r2_score_val:.3f} → Explains ~{r2_score_val*100:.0f}% of the variability in selling price.")
-        st.markdown(f"- **RMSE:** INR {rmse_val:,.0f} → Typical deviation from actual prices; lower is better.")
-        st.markdown(f"- **MAE:** INR {mae_val:,.0f} → Average absolute error; smaller MAE means predictions are closer to actual prices.")
+        st.markdown(f"- **RMSE:** ₹{rmse_val:,.0f} → Average deviation from true prices.")
+        st.markdown(f"- **MAE:** ₹{mae_val:,.0f} → Typical absolute prediction error.")
 
         # -----------------------
-        # PDF Export
+        # 🔍 SHAP DIAGNOSIS
         # -----------------------
-        class PDF(FPDF):
-            def header(self):
-                self.set_font("Arial", "B", 12)
-                self.cell(0, 10, "Car Price Prediction Report", ln=True, align="C")
+        st.subheader("🔍 SHAP Explainability")
 
-        pdf = PDF()
-        pdf.add_page()
-        pdf.set_font("Arial", size=12)
-        pdf.multi_cell(0,8,f"Predicted Price: INR {price_pred[0]:,.0f}")
-        pdf.multi_cell(0,8,"Input Features:")
-        for k,v in input_data.items():
-            pdf.multi_cell(0,8,f"- {k.replace('_',' ').title()}: {v}")
-        pdf_file = "car_prediction_report.pdf"
-        pdf.output(pdf_file)
-        with open(pdf_file,"rb") as f:
-            st.download_button("📄 Download PDF Report", f, file_name=pdf_file)
-
-        # -----------------------
-        # 🔍 SHAP Diagnosis
-        # -----------------------
-        st.subheader("🔍 SHAP Diagnosis")
         try:
             X_trans = pipeline.named_steps['preprocessor'].transform(input_df)
             model = pipeline.named_steps['model']
             explainer = shap.Explainer(model, X_trans)
             shap_values = explainer(X_trans)
 
-            st.markdown("#### 🔎 Feature Importance (SHAP Bar Plot)")
-            st.pyplot(shap.plots.bar(shap_values, show=False))
+            # SHAP Bar Plot
+            st.markdown("#### Feature Importance (SHAP Summary)")
+            fig_bar, ax = plt.subplots(figsize=(8, 4))
+            shap.plots.bar(shap_values, show=False)
+            st.pyplot(fig_bar)
 
-            st.markdown("#### 🧠 SHAP Waterfall Plot (Single Prediction)")
-            import matplotlib.pyplot as plt
-            fig, ax = plt.subplots(figsize=(10,5))
+            # SHAP Waterfall Plot
+            st.markdown("#### Local Feature Impact (Single Prediction)")
+            fig_wf, ax = plt.subplots(figsize=(10, 5))
             shap.plots.waterfall(shap_values[0], show=False)
-            st.pyplot(fig)
+            st.pyplot(fig_wf)
+
         except Exception as e:
-            st.warning(f" SHAP diagnosis failed: {e}")
+            st.warning(f"⚠️ SHAP visualization failed: {e}")
 
         # -----------------------
-        # Academic Insights
+        # 📄 PDF EXPORT
         # -----------------------
-        try:
-            st.markdown("<div class='insight'>", unsafe_allow_html=True)
-            st.markdown("### 📖 Academic Insights")
-            st.markdown("""
-            - **Log-transforming** the target stabilizes variance and reduces skew in high-priced cars.  
-            - **RandomForest** captures complex nonlinear interactions among features.  
-            - **SHAP** provides transparency by showing each feature's contribution.  
-            - **R², RMSE, MAE** quantify model performance and help users interpret prediction uncertainty.  
-            - **Luxury vehicles** may have higher prediction variance due to fewer examples in training data.  
-            """, unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-        except Exception as e:
-            st.warning(f" Could not display academic insights: {e}")
+        class PDF(FPDF):
+            def header(self):
+                self.set_font("Helvetica", "B", 14)
+                self.cell(0, 10, "Car Price Prediction Report", ln=True, align="C")
+
+        pdf = PDF()
+        pdf.add_page()
+        pdf.set_font("Helvetica", size=12)
+        pdf.multi_cell(0, 8, f"Predicted Price: ₹{price_pred[0]:,.0f}")
+        pdf.multi_cell(0, 8, "\nInput Features:")
+        for k, v in input_data.items():
+            pdf.multi_cell(0, 8, f"- {k.replace('_',' ').title()}: {v}")
+        pdf.multi_cell(0, 8, "\nModel Performance Metrics:")
+        pdf.multi_cell(0, 8, f"R² Score: {r2_score_val:.3f}")
+        pdf.multi_cell(0, 8, f"RMSE: ₹{rmse_val:,.0f}")
+        pdf.multi_cell(0, 8, f"MAE: ₹{mae_val:,.0f}")
+        pdf.output("car_prediction_report.pdf")
+
+        with open("car_prediction_report.pdf", "rb") as f:
+            st.download_button("📥 Download PDF Report", f, file_name="car_prediction_report.pdf")
+
+        # -----------------------
+        # 📚 ACADEMIC INSIGHTS
+        # -----------------------
+        st.markdown("<div class='insight'>", unsafe_allow_html=True)
+        st.markdown("### 📖 Academic Insights")
+        st.markdown("""
+        - **Log-transformation** of price stabilizes heteroscedasticity and improves model generalization.  
+        - **Random Forests** are robust to nonlinearities and feature interactions, reducing overfitting.  
+        - **SHAP explainability** bridges interpretability and trust, crucial for decision-support tools.  
+        - Metrics like **R²**, **RMSE**, and **MAE** quantify reliability and uncertainty of model predictions.  
+        - **Luxury brands** often appear as outliers, suggesting future inclusion of additional economic or regional factors.  
+        - Integrating SHAP with pricing dashboards supports **transparent AI adoption** in automotive analytics.  
+        """, unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     except Exception as e:
         st.error(f"❌ Prediction failed: {e}")
