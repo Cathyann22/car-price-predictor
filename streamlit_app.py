@@ -1,9 +1,10 @@
-
 # ================================================================
-# 🚗 FULL STREAMLIT PREDICTION + SHAP + CAR PRICE PREDICTOR APP
+# ✅ FULL STREAMLIT PREDICTION + SHAP + 🚗 CAR PRICE PREDICTOR APP
+# Academic Edition — Ready for Deployment & GitHub LFS
 # ================================================================
 
 import os
+import pickle
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -19,9 +20,8 @@ import shap
 import matplotlib.pyplot as plt
 
 # ================================================================
-# ✅ Page config & CSS
+# ✅ Page Config & Custom CSS
 # ================================================================
-
 st.set_page_config(page_title="Luxury Car Price Predictor", layout="wide")
 st.markdown("""
 <style>
@@ -32,32 +32,37 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🚗 Luxury Car Price Predictor — Interactive Academic Edition")
+st.title("🚗 Luxury Car Price Predictor — Academic Edition")
 
 # ================================================================
 # ✅ Tabs
 # ================================================================
-tabs = st.tabs(["📊 Data Overview", "🧾 Single Prediction", "🔍 SHAP Explainability", "📚 Academic Insights"])
+tabs = st.tabs([
+    "📊 Data Overview", 
+    "🧾 Single Prediction", 
+    "🔍 SHAP Explainability", 
+    "📚 Academic Insights",
+    "📄 Export PDF Report"
+])
 
 # ================================================================
 # ✅ Load Dataset
 # ================================================================
-try:
+dataset_loaded = False
+uploaded_file = st.file_uploader("Upload CSV dataset", type=["csv"])
+if uploaded_file:
+    df = pd.read_csv(uploaded_file)
+    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+    dataset_loaded = True
+elif Path("car_price_dataset.csv").exists():
     df = pd.read_csv("car_price_dataset.csv")
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
     dataset_loaded = True
-except FileNotFoundError:
+else:
     df = None
-    dataset_loaded = False
 
 with tabs[0]:
     st.subheader("📊 Dataset Overview")
-    uploaded_file = st.file_uploader("Upload CSV dataset", type=["csv"])
-    if uploaded_file:
-        df = pd.read_csv(uploaded_file)
-        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-        dataset_loaded = True
-
     if dataset_loaded:
         st.success("✅ Dataset loaded successfully.")
         st.dataframe(df.head(10))
@@ -72,16 +77,16 @@ if not dataset_loaded:
     st.stop()
 
 # ================================================================
-# ✅ Data Cleaning & Features
+# ✅ Data Cleaning & Feature Setup
 # ================================================================
 df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
 features = ['brand', 'fuel_type', 'transmission_type', 'vehicle_age',
             'km_driven', 'mileage', 'engine', 'max_power', 'seats']
 target = 'selling_price'
 
-missing = [c for c in features + [target] if c not in df.columns]
-if missing:
-    st.error(f"❌ Missing required columns: {missing}")
+missing_cols = [c for c in features + [target] if c not in df.columns]
+if missing_cols:
+    st.error(f"❌ Missing required columns: {missing_cols}")
     st.stop()
 
 df = df.dropna(subset=features + [target]).copy()
@@ -100,32 +105,29 @@ preprocessor = ColumnTransformer([
 ])
 
 # ================================================================
-# ✅ Model Training
+# ✅ Luxury Mode & Pipeline Training
 # ================================================================
 luxury_mode = st.checkbox("💎 Enable Luxury Mode (High-End Vehicle Focus)", value=False)
 
-model = RandomForestRegressor(
-    n_estimators=200 if luxury_mode else 100,
-    max_depth=20 if luxury_mode else None,
-    random_state=42,
-    n_jobs=-1
-)
-
-pipeline = Pipeline([('preprocessor', preprocessor), ('model', model)])
+# Train-test split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Define pipeline
+pipeline = Pipeline([
+    ('preprocessor', preprocessor),
+    ('model', RandomForestRegressor(
+        n_estimators=200 if luxury_mode else 100,
+        max_depth=20 if luxury_mode else None,
+        random_state=42,
+        n_jobs=-1
+    ))
+])
+
+# Train model
 pipeline.fit(X_train, y_train)
 
 # ================================================================
-# ✅ Save Trained Pipeline for GitHub LFS
-# ================================================================
-os.makedirs("models", exist_ok=True)
-pipeline_file = "models/random_forest_pipeline.pkl"
-with open(pipeline_file, "wb") as f:
-    pickle.dump(pipeline, f)
-st.success(f"✅ Trained pipeline saved as: {pipeline_file}")
-
-# ================================================================
-# ✅ Evaluate
+# ✅ Model Evaluation
 # ================================================================
 y_test_pred_log = pipeline.predict(X_test)
 y_test_true_orig = np.expm1(y_test)
@@ -135,24 +137,27 @@ rmse_real = np.sqrt(mean_squared_error(y_test_true_orig, y_test_pred_orig))
 mae_real = mean_absolute_error(y_test_true_orig, y_test_pred_orig)
 practical_accuracy = ((np.abs(y_test_true_orig - y_test_pred_orig) / (y_test_true_orig + 1e-9)) <= 0.10).mean()
 
-# ================================================================
-# ✅ Precompute Global SHAP
-# ================================================================
-preproc = pipeline.named_steps['preprocessor']
-model = pipeline.named_steps['model']
-X_train_tr = preproc.transform(X_train)
-cat_names = preproc.named_transformers_['cat'].get_feature_names_out(cat_features)
-feature_names = list(num_features) + list(cat_names)
+# Save pipeline for reproducibility & Git LFS
+os.makedirs("models", exist_ok=True)
+pipeline_file = "models/random_forest_pipeline.pkl"
+with open(pipeline_file, "wb") as f:
+    pickle.dump(pipeline, f)
+st.success(f"✅ Trained pipeline saved at: {pipeline_file}")
 
-explainer = shap.TreeExplainer(model)
+# ================================================================
+# ✅ Global SHAP Precomputation
+# ================================================================
+explainer = shap.TreeExplainer(pipeline.named_steps['model'])
+X_train_tr = pipeline.named_steps['preprocessor'].transform(X_train)
 sample = X_train_tr[:200]  # limit for performance
 shap_values = explainer.shap_values(sample)
+cat_names = pipeline.named_steps['preprocessor'].named_transformers_['cat'].get_feature_names_out(cat_features)
+feature_names = list(num_features) + list(cat_names)
 
 # ================================================================
 # ✅ Single Prediction Tab
 # ================================================================
 input_data = {}
-input_df = None
 pred_price = None
 
 with tabs[1]:
@@ -197,12 +202,11 @@ with tabs[1]:
             c3.metric("Value Category", "Premium" if pred_price>df['price_orig'].median() else "Value")
 
             # Local SHAP
-            single_tr = preproc.transform(input_df)
+            single_tr = pipeline.named_steps['preprocessor'].transform(input_df)
             single_shap = explainer.shap_values(single_tr)
             expl_local = shap.Explanation(values=single_shap[0],
                                           base_values=explainer.expected_value,
                                           data=single_tr[0])
-
             plt.figure(figsize=(8,4))
             shap.waterfall_plot(expl_local, show=False)
             plt.tight_layout()
@@ -265,20 +269,78 @@ with tabs[3]:
     - **Academic Justification**: Non-linearity supports the use of ensemble methods over linear regressors.
     """)
 
-# -------------------------------
-# 🚀 Deployment Guide (for Streamlit Cloud)
-# -------------------------------
+# ================================================================
+# ✅ PDF Export Tab
+# ================================================================
+with tabs[4]:
+    st.subheader("📄 Export Academic Report as PDF")
+    if pred_price is not None:
+        export_pdf = st.button("🖨️ Generate PDF Report")
+        if export_pdf:
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_auto_page_break(auto=True, margin=15)
+
+            pdf.set_font("Helvetica", "B", 16)
+            pdf.set_text_color(45, 45, 45)
+            pdf.cell(0, 10, "Luxury Car Price Prediction Report", ln=True, align="C")
+            pdf.ln(5)
+            pdf.set_font("Helvetica", "", 11)
+            pdf.cell(0, 10, f"Timestamp: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
+            pdf.ln(5)
+            pdf.cell(0, 10, f"Luxury Mode Enabled: {'Yes' if luxury_mode else 'No'}", ln=True)
+            pdf.ln(5)
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.cell(0, 10, f"Predicted Price: ₹{pred_price:,.0f}", ln=True)
+            pdf.ln(5)
+
+            pdf.set_font("Helvetica", "", 11)
+            pdf.cell(0, 8, "Input Features:", ln=True)
+            for k, v in input_data.items():
+                pdf.cell(0, 6, f"  • {k}: {v}", ln=True)
+            pdf.ln(5)
+
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.cell(0, 10, "Model Evaluation Metrics:", ln=True)
+            pdf.set_font("Helvetica", "", 11)
+            pdf.cell(0, 8, f"  • RMSE: {rmse_real:.2f}", ln=True)
+            pdf.cell(0, 8, f"  • R² Score: {r2_real:.3f}", ln=True)
+            pdf.cell(0, 8, f"  • MAE: {mae_real:.2f}", ln=True)
+            pdf.ln(5)
+
+            if os.path.exists("shap_local.png"):
+                pdf.set_font("Helvetica", "B", 12)
+                pdf.cell(0, 10, "Local SHAP Waterfall:", ln=True)
+                pdf.image("shap_local.png", w=170)
+                pdf.ln(5)
+
+            if os.path.exists("shap_summary.png"):
+                pdf.set_font("Helvetica", "B", 12)
+                pdf.cell(0, 10, "Global SHAP Summary:", ln=True)
+                pdf.image("shap_summary.png", w=170)
+                pdf.ln(5)
+
+            pdf_path = "luxury_car_report.pdf"
+            pdf.output(pdf_path)
+
+            with open(pdf_path, "rb") as f:
+                st.download_button(
+                    label="📥 Download PDF Report",
+                    data=f,
+                    file_name=pdf_path,
+                    mime="application/pdf"
+                )
+    else:
+        st.info("Predict a car price first to generate a PDF report.")
+
+# ================================================================
+# 🚀 Academic Deployment Notes
+# ================================================================
 st.markdown("---")
-st.subheader("🚀 Deployment Guide")
-
+st.subheader("🚀 Deployment Guide (Academic Notes)")
 st.markdown("""
-**Steps to deploy this app:**
-1. Push the full project to a public GitHub repository.  
-2. Go to [Streamlit Cloud](https://share.streamlit.io).  
-3. Connect your GitHub account and select this repository.  
-4. Streamlit builds and deploys automatically.
-*Academic Note:*  
-Deployment fosters **reproducibility**, **transparency**, and **stakeholder accessibility**—key tenets of applied AI research.
+1. Push the full project to GitHub.
+2. Track model artifacts with **Git LFS**: `git lfs track "models/*.pkl"`.
+3. Deploy via [Streamlit Cloud](https://share.streamlit.io).
+4. Academic Note: Deployment ensures **reproducibility**, **transparency**, and **stakeholder accessibility**.
 """)
-
-
