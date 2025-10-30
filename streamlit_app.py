@@ -3,9 +3,6 @@
 # 🚗 FULL STREAMLIT PREDICTION + SHAP + CAR PRICE PREDICTOR APP
 # ================================================================
 
-# -----------------------
-# Import libraries
-# -----------------------
 import os
 from pathlib import Path
 import pandas as pd
@@ -21,11 +18,11 @@ from fpdf import FPDF
 import shap
 import matplotlib.pyplot as plt
 
-# -----------------------
-# Page setup
-# -----------------------
-st.set_page_config(page_title="Luxury Car Price Predictor", layout="wide")
+# ================================================================
+# ✅ Page config & CSS
+# ================================================================
 
+st.set_page_config(page_title="Luxury Car Price Predictor", layout="wide")
 st.markdown("""
 <style>
 .stApp {background: linear-gradient(to right, #f3f7fb, #ffffff); font-family: 'Segoe UI', sans-serif;}
@@ -37,14 +34,14 @@ st.markdown("""
 
 st.title("🚗 Luxury Car Price Predictor — Interactive Academic Edition")
 
-# -----------------------
-# Tabs
-# -----------------------
+# ================================================================
+# ✅ Tabs
+# ================================================================
 tabs = st.tabs(["📊 Data Overview", "🧾 Single Prediction", "🔍 SHAP Explainability", "📚 Academic Insights"])
 
-# -----------------------
-# Load dataset
-# -----------------------
+# ================================================================
+# ✅ Load Dataset
+# ================================================================
 try:
     df = pd.read_csv("car_price_dataset.csv")
     df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
@@ -74,9 +71,9 @@ with tabs[0]:
 if not dataset_loaded:
     st.stop()
 
-# -----------------------
-# Data cleaning
-# -----------------------
+# ================================================================
+# ✅ Data Cleaning & Features
+# ================================================================
 df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
 features = ['brand', 'fuel_type', 'transmission_type', 'vehicle_age',
             'km_driven', 'mileage', 'engine', 'max_power', 'seats']
@@ -102,9 +99,9 @@ preprocessor = ColumnTransformer([
     ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), cat_features)
 ])
 
-# -----------------------
-# Model training
-# -----------------------
+# ================================================================
+# ✅ Model Training
+# ================================================================
 luxury_mode = st.checkbox("💎 Enable Luxury Mode (High-End Vehicle Focus)", value=False)
 
 model = RandomForestRegressor(
@@ -118,9 +115,18 @@ pipeline = Pipeline([('preprocessor', preprocessor), ('model', model)])
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 pipeline.fit(X_train, y_train)
 
-# -----------------------
-# Model evaluation
-# -----------------------
+# ================================================================
+# ✅ Save Trained Pipeline for GitHub LFS
+# ================================================================
+os.makedirs("models", exist_ok=True)
+pipeline_file = "models/random_forest_pipeline.pkl"
+with open(pipeline_file, "wb") as f:
+    pickle.dump(pipeline, f)
+st.success(f"✅ Trained pipeline saved as: {pipeline_file}")
+
+# ================================================================
+# ✅ Evaluate
+# ================================================================
 y_test_pred_log = pipeline.predict(X_test)
 y_test_true_orig = np.expm1(y_test)
 y_test_pred_orig = np.expm1(y_test_pred_log)
@@ -129,9 +135,9 @@ rmse_real = np.sqrt(mean_squared_error(y_test_true_orig, y_test_pred_orig))
 mae_real = mean_absolute_error(y_test_true_orig, y_test_pred_orig)
 practical_accuracy = ((np.abs(y_test_true_orig - y_test_pred_orig) / (y_test_true_orig + 1e-9)) <= 0.10).mean()
 
-# -----------------------
-# SHAP Explainability (Global)
-# -----------------------
+# ================================================================
+# ✅ Precompute Global SHAP
+# ================================================================
 preproc = pipeline.named_steps['preprocessor']
 model = pipeline.named_steps['model']
 X_train_tr = preproc.transform(X_train)
@@ -142,10 +148,13 @@ explainer = shap.TreeExplainer(model)
 sample = X_train_tr[:200]  # limit for performance
 shap_values = explainer.shap_values(sample)
 
-# -----------------------
-# 🧾 Single Prediction Tab
-# -----------------------
+# ================================================================
+# ✅ Single Prediction Tab
+# ================================================================
 input_data = {}
+input_df = None
+pred_price = None
+
 with tabs[1]:
     st.subheader("🧾 Single Prediction Form")
     with st.form("predict_form"):
@@ -165,6 +174,7 @@ with tabs[1]:
             log_pred = pipeline.predict(input_df)
             pred_price = float(np.expm1(log_pred)[0])
 
+            # Luxury adjustment
             luxury_brands = {"bmw","audi","mercedes","porsche","jaguar","land rover"}
             brand_val = str(input_data.get("brand","")).lower()
             if luxury_mode and brand_val in luxury_brands:
@@ -192,6 +202,7 @@ with tabs[1]:
             expl_local = shap.Explanation(values=single_shap[0],
                                           base_values=explainer.expected_value,
                                           data=single_tr[0])
+
             plt.figure(figsize=(8,4))
             shap.waterfall_plot(expl_local, show=False)
             plt.tight_layout()
@@ -202,9 +213,9 @@ with tabs[1]:
         except Exception as exc:
             st.error(f"Prediction error: {exc}")
 
-# -----------------------
-# 🔍 SHAP Explainability Tab
-# -----------------------
+# ================================================================
+# ✅ SHAP Explainability Tab
+# ================================================================
 with tabs[2]:
     st.subheader("🔍 Global SHAP Explainability")
     st.markdown("""
@@ -220,12 +231,11 @@ with tabs[2]:
     plt.close()
     st.image("shap_summary.png", caption="Global SHAP Summary", use_column_width=True)
 
-# -----------------------
-# 📚 Academic Insights Tab
-# -----------------------
+# ================================================================
+# ✅ Academic Insights Tab
+# ================================================================
 with tabs[3]:
     st.subheader("📚 Academic Insights")
-
     st.markdown("""
     ### 🎯 Research Objectives
     - Apply ML to uncover **automotive price determinants**.
@@ -267,7 +277,6 @@ st.markdown("""
 2. Go to [Streamlit Cloud](https://share.streamlit.io).  
 3. Connect your GitHub account and select this repository.  
 4. Streamlit builds and deploys automatically.
-
 *Academic Note:*  
 Deployment fosters **reproducibility**, **transparency**, and **stakeholder accessibility**—key tenets of applied AI research.
 """)
