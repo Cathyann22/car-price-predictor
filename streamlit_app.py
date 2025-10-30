@@ -1,10 +1,10 @@
 
- ================================================================
+# ================================================================
 # ✅ FULL STREAMLIT PREDICTION + SHAP + 🚗 CAR PRICE PREDICTOR APP
-#===============================================================
+# ================================================================
 
 # Includes SHAP explainability and academic commentary
-# ==================================================
+# ================================================================
 
 # -----------------------
 # IMPORTS
@@ -32,7 +32,6 @@ st.set_page_config(page_title="Car Price Predictor", layout="wide")
 st.markdown("""
 <style>
 .stApp {background: linear-gradient(to right, #e3f2fd, #fce4ec); font-family: 'Segoe UI', sans-serif;}
-.luxury {background-color: #fff8e1; padding: 15px; border-radius: 10px; border: 1px solid #ffcc80; margin-bottom: 10px;}
 .insight {background-color: #e8f5e9; padding: 10px; border-left: 5px solid #43a047; margin-bottom: 10px;}
 </style>
 """, unsafe_allow_html=True)
@@ -157,11 +156,15 @@ if submitted:
         # -----------------------
         st.subheader("🔍 SHAP Explainability")
         st.markdown("**Global Feature Importance** – average contribution of each feature to model predictions.")
-        plt.figure(figsize=(8, 5))
-        shap.summary_plot(shap_values, X_train_transformed, show=False)
+
+        fig_bar = plt.figure(figsize=(8, 5))
+        shap.summary_plot(shap_values, X_train_transformed,
+                          feature_names=numeric_features + list(preprocessor.named_transformers_['cat'].get_feature_names_out(categorical_features)),
+                          show=False)
         plt.tight_layout()
         plt.savefig("shap_bar.png", bbox_inches="tight")
         st.image("shap_bar.png", caption="Global SHAP Feature Importance")
+        plt.close(fig_bar)
 
         # -----------------------
         # PLOT SHAP: LOCAL EXPLANATION
@@ -169,6 +172,7 @@ if submitted:
         st.markdown("**Local Explanation** – how this specific prediction was formed.")
         single_val = preprocessor.transform(input_df)
         single_shap = explainer.shap_values(single_val)
+        fig_wf = plt.figure(figsize=(9, 5))
         shap.waterfall_plot(
             shap.Explanation(values=single_shap[0],
                              base_values=explainer.expected_value,
@@ -178,6 +182,7 @@ if submitted:
         plt.tight_layout()
         plt.savefig("shap_waterfall.png", bbox_inches="tight")
         st.image("shap_waterfall.png", caption="Local SHAP Waterfall")
+        plt.close(fig_wf)
 
         # -----------------------
         # 📄 GENERATE PDF REPORT
@@ -195,7 +200,7 @@ if submitted:
         pdf.multi_cell(0, 8, "Input Features:")
         for k, v in input_data.items():
             pdf.multi_cell(0, 8, f"- {k.replace('_', ' ').title()}: {v}")
-        pdf.multi_cell(0, 8, "\nInterpretation:\nThis Random Forest regression model demonstrates high predictive accuracy and transparency through SHAP explainability, allowing insight into individual feature contributions.")
+        pdf.multi_cell(0, 8, "\nInterpretation:\nThis Random Forest regression model demonstrates high predictive accuracy and transparency through SHAP explainability, enabling deeper understanding of feature contributions.")
         pdf.image("shap_bar.png", x=10, y=None, w=180)
         pdf.image("shap_waterfall.png", x=10, y=None, w=180)
         pdf.output("car_prediction_report.pdf")
@@ -204,16 +209,16 @@ if submitted:
             st.download_button("📥 Download Academic PDF Report", f, file_name="car_prediction_report.pdf")
 
         # -----------------------
-        # INSIGHTS
+        # ACADEMIC INSIGHTS
         # -----------------------
         st.markdown("<div class='insight'>", unsafe_allow_html=True)
         st.markdown("""
         ### 📖 Academic Insights
-        - **Feature scaling** and encoding ensure that mixed data types are harmonized for learning.  
-        - **Random Forests** capture non-linear dependencies effectively, outperforming simpler linear models.  
-        - **SHAP** provides *explainable AI* insight—quantifying each feature’s marginal contribution to model output.  
-        - **Model interpretability** is vital for ethical and accountable AI in data-driven decision systems.  
-        - **PDF documentation** formalizes results for reproducibility and academic evaluation.  
+        - **Data preprocessing** ensures feature standardization, improving model generalization.  
+        - **Random Forests** handle nonlinearities and mixed data efficiently, increasing predictive reliability.  
+        - **SHAP explainability** aligns with the principle of *transparent AI*, promoting ethical and auditable outcomes.  
+        - **Model interpretability** bridges technical results with business and research accountability.  
+        - **Automated PDF reporting** enhances reproducibility and academic documentation integrity.  
         """, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
