@@ -1,4 +1,3 @@
-# ✅ Cathy_Annabella_Masentle_Mahumane
 
 # ================================================================
 # 🚗 FULL STREAMLIT PREDICTION + SHAP + CAR PRICE PREDICTOR APP
