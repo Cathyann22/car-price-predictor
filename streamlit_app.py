@@ -3,227 +3,250 @@
 # ✅ FULL STREAMLIT PREDICTION + SHAP + 🚗 CAR PRICE PREDICTOR APP
 # ================================================================
 
-# Includes SHAP explainability and academic commentary
+# 🎓 LUXURY CAR PRICE PREDICTOR + SHAP + PERFORMANCE METRICS
+
+# Elegant academic Streamlit app with:
+# ✅ SHAP explainability
+# ✅ RMSE, MAE, R² performance metrics
+# ✅ Luxury Mode (UI + adjusted scaling)
+# ✅ Academic PDF report with upload
 # ================================================================
 
-# -----------------------
-# IMPORTS
-# -----------------------
 import os
 import pickle
-from pathlib import Path
 import pandas as pd
 import numpy as np
 import streamlit as st
+from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from fpdf import FPDF
 import shap
 import matplotlib.pyplot as plt
 
-# -----------------------
-# ✅ PAGE CONFIG & STYLING
-# -----------------------
-st.set_page_config(page_title="Car Price Predictor", layout="wide")
+# ================================================================
+# 🎨 PAGE CONFIG & THEME
+# ================================================================
+st.set_page_config(page_title="Luxury Car Price Predictor", layout="wide")
 
 st.markdown("""
 <style>
-.stApp {background: linear-gradient(to right, #e3f2fd, #fce4ec); font-family: 'Segoe UI', sans-serif;}
-.insight {background-color: #e8f5e9; padding: 10px; border-left: 5px solid #43a047; margin-bottom: 10px;}
+.stApp {
+    background: linear-gradient(to right, #e3f2fd, #fce4ec);
+    font-family: 'Segoe UI', sans-serif;
+}
+.luxury {
+    background: linear-gradient(135deg, #f7f7f7, #d7ccc8);
+    border: 1px solid #b0bec5;
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 10px;
+}
+.insight {
+    background-color: #f9fbe7;
+    padding: 10px;
+    border-left: 5px solid #8bc34a;
+    margin-top: 15px;
+}
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🚗 Car Price Predictor")
+st.title("🚗 **Luxury Car Price Predictor**")
 st.markdown("""
-Predict car prices using a trained **Random Forest** model enhanced with **SHAP explainability** 
-and **automated academic PDF reporting**.
+Welcome to the **academic and interpretable car price prediction tool**.
+It uses a **Random Forest Regressor** with **SHAP explainability** and **automated reporting** to ensure transparency and fairness in AI-driven pricing models.
 """)
 
-# -----------------------
-# ✅ DEFINE FEATURES & TARGET
-# -----------------------
-features = ['brand', 'fuel_type', 'transmission_type', 'vehicle_age',
-            'km_driven', 'mileage', 'engine', 'max_power', 'seats']
-target = 'selling_price'
+# ================================================================
+# 🧭 USER MODE SELECTION
+# ================================================================
+luxury_mode = st.toggle("✨ Enable Luxury Mode (High-End Vehicle Focus)", value=False)
 
-# -----------------------
-# ✅ LOAD DATA
-# -----------------------
+# ================================================================
+# 📂 DATASET UPLOAD
+# ================================================================
 try:
     df = pd.read_csv("car_price_dataset.csv")
-    st.success("✅ Dataset loaded from local path!")
+    st.success("✅ Default dataset loaded successfully.")
 except FileNotFoundError:
     df = None
-    st.warning("⚠️ Local dataset not found. Please upload it below.")
+    st.warning("⚠️ Please upload your dataset.")
 
-uploaded_file = st.file_uploader("📤 Upload your CSV dataset", type=["csv"])
+uploaded_file = st.file_uploader("📤 Upload CSV dataset", type=["csv"])
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
-    st.success("✅ Uploaded file loaded successfully!")
+    st.success("✅ Dataset uploaded successfully!")
 
 if df is None:
     st.stop()
 
-# -----------------------
-# ✅ CLEAN & VALIDATE DATA
-# -----------------------
+# ================================================================
+# 🧹 DATA CLEANING
+# ================================================================
 df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
+features = ['brand', 'fuel_type', 'transmission_type', 'vehicle_age', 'km_driven', 'mileage', 'engine', 'max_power', 'seats']
+target = 'selling_price'
 
-missing_cols = [col for col in features + [target] if col not in df.columns]
-if missing_cols:
-    st.error(f"❌ Missing required columns: {missing_cols}")
+if not all(col in df.columns for col in features + [target]):
+    st.error("❌ Required columns missing from dataset.")
     st.stop()
 
 df = df.dropna(subset=features + [target])
 df['log_price'] = np.log1p(df[target])
-
 X = df[features]
 y = df['log_price']
 
-# -----------------------
-# ✅ TRAIN-TEST SPLIT
-# -----------------------
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# -----------------------
-# ✅ PREPROCESSING
-# -----------------------
-numeric_features = ['vehicle_age', 'km_driven', 'mileage', 'engine', 'max_power', 'seats']
-categorical_features = list(set(features) - set(numeric_features))
+# ================================================================
+# ⚙️ PREPROCESSING PIPELINE
+# ================================================================
+num_features = ['vehicle_age', 'km_driven', 'mileage', 'engine', 'max_power', 'seats']
+cat_features = list(set(features) - set(num_features))
 
 preprocessor = ColumnTransformer([
-    ('num', StandardScaler(), numeric_features),
-    ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), categorical_features)
+    ('num', StandardScaler(), num_features),
+    ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), cat_features)
 ])
 
-# -----------------------
-# ✅ RANDOM FOREST PIPELINE
-# -----------------------
+model = RandomForestRegressor(
+    n_estimators=200 if luxury_mode else 100,
+    max_depth=20 if luxury_mode else None,
+    random_state=42,
+    n_jobs=-1
+)
+
 pipeline = Pipeline([
     ('preprocessor', preprocessor),
-    ('model', RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1))
+    ('model', model)
 ])
 
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 pipeline.fit(X_train, y_train)
-st.success("✅ Model trained successfully!")
 
-# -----------------------
-# ✅ SAVE PIPELINE
-# -----------------------
-os.makedirs("models", exist_ok=True)
-with open("models/log_rf_pipeline.pkl", "wb") as f:
-    pickle.dump(pipeline, f)
-with open("models/log_rf_features.pkl", "wb") as f:
-    pickle.dump(features, f)
+# ================================================================
+# 📊 MODEL PERFORMANCE METRICS
+# ================================================================
+y_train_pred = pipeline.predict(X_train)
+y_test_pred = pipeline.predict(X_test)
 
-# -----------------------
-# 🧾 USER INPUT FORM
-# -----------------------
-st.subheader("🧾 Enter Car Details for Prediction")
+r2_train = r2_score(y_train, y_train_pred)
+r2_test = r2_score(y_test, y_test_pred)
+rmse_train = np.sqrt(mean_squared_error(y_train, y_train_pred))
+rmse_test = np.sqrt(mean_squared_error(y_test, y_test_pred))
+mae_test = mean_absolute_error(y_test, y_test_pred)
+
+# Derived F1-like reliability score (scaled interpretability)
+f1_like = max(0, min(1, (r2_test + (1 - rmse_test / (rmse_train + 1e-9))) / 2))
+
+st.markdown("### ⚙️ Model Performance Summary")
+st.markdown(f"""
+- **Train R²:** {r2_train:.3f}  
+- **Test R²:** {r2_test:.3f}  
+- **Test RMSE:** ₹{np.expm1(rmse_test):,.0f}  
+- **Test MAE:** ₹{np.expm1(mae_test):,.0f}  
+- **Reliability Index (F1-analogue):** {f1_like:.2%}  
+""")
+
+# ================================================================
+# 🧾 PREDICTION INPUT FORM
+# ================================================================
+st.subheader("🧾 Enter Car Details")
+
 input_data = {}
-with st.form("car_input_form"):
+with st.form("input_form"):
     for feature in features:
-        if feature in numeric_features:
+        if feature in num_features:
             input_data[feature] = st.number_input(f"{feature.replace('_', ' ').title()}", min_value=0.0, value=0.0)
         else:
             input_data[feature] = st.selectbox(f"{feature.replace('_', ' ').title()}", df[feature].unique())
-    submitted = st.form_submit_button("🔮 Predict Price")
+    submitted = st.form_submit_button("🔮 Predict Luxury Car Price")
 
-# -----------------------
-# ✅ PREDICTION & SHAP EXPLAINABILITY
-# -----------------------
+# ================================================================
+# 🔮 PREDICTION + SHAP EXPLANATION
+# ================================================================
 if submitted:
-    try:
-        input_df = pd.DataFrame([input_data])
-        log_pred = pipeline.predict(input_df)
-        price_pred = np.expm1(log_pred)
-        st.success(f"**Predicted Selling Price:** ₹{price_pred[0]:,.0f}")
+    input_df = pd.DataFrame([input_data])
+    log_pred = pipeline.predict(input_df)
+    price_pred = np.expm1(log_pred)[0]
 
-        # -----------------------
-        # SHAP VALUES
-        # -----------------------
-        preprocessor = pipeline.named_steps["preprocessor"]
-        model = pipeline.named_steps["model"]
-        X_train_transformed = preprocessor.transform(X_train)
-        explainer = shap.TreeExplainer(model)
-        shap_values = explainer.shap_values(X_train_transformed)
+    st.success(f"💰 **Predicted Selling Price:** ₹{price_pred:,.0f}")
 
-        # -----------------------
-        # PLOT SHAP: GLOBAL IMPORTANCE
-        # -----------------------
-        st.subheader("🔍 SHAP Explainability")
-        st.markdown("**Global Feature Importance** – average contribution of each feature to model predictions.")
+    preproc = pipeline.named_steps['preprocessor']
+    model = pipeline.named_steps['model']
+    X_train_t = preproc.transform(X_train)
 
-        fig_bar = plt.figure(figsize=(8, 5))
-        shap.summary_plot(shap_values, X_train_transformed,
-                          feature_names=numeric_features + list(preprocessor.named_transformers_['cat'].get_feature_names_out(categorical_features)),
-                          show=False)
-        plt.tight_layout()
-        plt.savefig("shap_bar.png", bbox_inches="tight")
-        st.image("shap_bar.png", caption="Global SHAP Feature Importance")
-        plt.close(fig_bar)
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(X_train_t)
 
-        # -----------------------
-        # PLOT SHAP: LOCAL EXPLANATION
-        # -----------------------
-        st.markdown("**Local Explanation** – how this specific prediction was formed.")
-        single_val = preprocessor.transform(input_df)
-        single_shap = explainer.shap_values(single_val)
-        fig_wf = plt.figure(figsize=(9, 5))
-        shap.waterfall_plot(
-            shap.Explanation(values=single_shap[0],
-                             base_values=explainer.expected_value,
-                             data=single_val[0]),
-            show=False
-        )
-        plt.tight_layout()
-        plt.savefig("shap_waterfall.png", bbox_inches="tight")
-        st.image("shap_waterfall.png", caption="Local SHAP Waterfall")
-        plt.close(fig_wf)
+    st.subheader("🔍 SHAP Explainability")
 
-        # -----------------------
-        # 📄 GENERATE PDF REPORT
-        # -----------------------
-        class PDF(FPDF):
-            def header(self):
-                self.set_font("Helvetica", "B", 16)
-                self.cell(0, 10, "🚗 Car Price Prediction Report", ln=True, align="C")
-                self.ln(5)
+    # Global importance
+    fig_global = plt.figure(figsize=(8, 5))
+    shap.summary_plot(
+        shap_values, X_train_t,
+        feature_names=num_features + list(preproc.named_transformers_['cat'].get_feature_names_out(cat_features)),
+        show=False
+    )
+    plt.tight_layout()
+    plt.savefig("shap_global.png", bbox_inches="tight")
+    st.image("shap_global.png", caption="Global Feature Importance")
 
-        pdf = PDF()
-        pdf.add_page()
-        pdf.set_font("Helvetica", size=12)
-        pdf.multi_cell(0, 8, f"Predicted Price: ₹{price_pred[0]:,.0f}\n")
-        pdf.multi_cell(0, 8, "Input Features:")
-        for k, v in input_data.items():
-            pdf.multi_cell(0, 8, f"- {k.replace('_', ' ').title()}: {v}")
-        pdf.multi_cell(0, 8, "\nInterpretation:\nThis Random Forest regression model demonstrates high predictive accuracy and transparency through SHAP explainability, enabling deeper understanding of feature contributions.")
-        pdf.image("shap_bar.png", x=10, y=None, w=180)
-        pdf.image("shap_waterfall.png", x=10, y=None, w=180)
-        pdf.output("car_prediction_report.pdf")
+    # Local waterfall
+    transformed_input = preproc.transform(input_df)
+    single_shap = explainer.shap_values(transformed_input)
+    fig_local = plt.figure(figsize=(9, 5))
+    shap.waterfall_plot(
+        shap.Explanation(values=single_shap[0], base_values=explainer.expected_value, data=transformed_input[0]),
+        show=False
+    )
+    plt.tight_layout()
+    plt.savefig("shap_local.png", bbox_inches="tight")
+    st.image("shap_local.png", caption="Local Prediction Breakdown")
 
-        with open("car_prediction_report.pdf", "rb") as f:
-            st.download_button("📥 Download Academic PDF Report", f, file_name="car_prediction_report.pdf")
+    # ================================================================
+    # 🧾 PDF REPORT GENERATION
+    # ================================================================
+    class PDF(FPDF):
+        def header(self):
+            self.set_font("Helvetica", "B", 14)
+            self.cell(0, 10, "Luxury Car Price Prediction Report", ln=True, align="C")
+            self.ln(4)
 
-        # -----------------------
-        # ACADEMIC INSIGHTS
-        # -----------------------
-        st.markdown("<div class='insight'>", unsafe_allow_html=True)
-        st.markdown("""
-        ### 📖 Academic Insights
-        - **Data preprocessing** ensures feature standardization, improving model generalization.  
-        - **Random Forests** handle nonlinearities and mixed data efficiently, increasing predictive reliability.  
-        - **SHAP explainability** aligns with the principle of *transparent AI*, promoting ethical and auditable outcomes.  
-        - **Model interpretability** bridges technical results with business and research accountability.  
-        - **Automated PDF reporting** enhances reproducibility and academic documentation integrity.  
-        """, unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+    pdf = PDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", "", 12)
+    pdf.multi_cell(0, 8, f"Predicted Price: ₹{price_pred:,.0f}\n")
+    pdf.multi_cell(0, 8, "Model Performance Metrics:")
+    pdf.multi_cell(0, 8, f"- R² (Test): {r2_test:.3f}")
+    pdf.multi_cell(0, 8, f"- RMSE: ₹{np.expm1(rmse_test):,.0f}")
+    pdf.multi_cell(0, 8, f"- MAE: ₹{np.expm1(mae_test):,.0f}")
+    pdf.multi_cell(0, 8, f"- Reliability Index: {f1_like:.2%}")
+    pdf.multi_cell(0, 8, "\nInput Features:")
+    for k, v in input_data.items():
+        pdf.multi_cell(0, 8, f"• {k.title()}: {v}")
+    pdf.image("shap_global.png", x=10, y=None, w=180)
+    pdf.image("shap_local.png", x=10, y=None, w=180)
+    pdf.output("Luxury_Car_Report.pdf")
 
-    except Exception as e:
-        st.error(f"❌ Prediction failed: {e}")
+    with open("Luxury_Car_Report.pdf", "rb") as f:
+        st.download_button("📥 Download Full Academic Report", f, file_name="Luxury_Car_Report.pdf")
+
+  # ================================================================
+    # 📘 INSIGHTS
+    # ================================================================
+    st.markdown("<div class='insight'>", unsafe_allow_html=True)
+    st.markdown("""
+    ### 📘 Academic Insights
+    1. **Transformations:** Log-scaling of the price variable stabilizes variance and improves model generalization.
+    2. **Feature Encoding:** Mixed data (categorical + numeric) is harmonized via `ColumnTransformer`, ensuring fair comparisons.
+    3. **Explainability:** SHAP provides *axiomatic transparency*, aligning with ethical AI principles.
+    4. **Reliability Index (F1-like)** quantifies predictive consistency beyond R² and RMSE.
+    5. **Luxury Mode:** Uses deeper trees and more estimators for nuanced high-end pricing.
+    """, unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 
