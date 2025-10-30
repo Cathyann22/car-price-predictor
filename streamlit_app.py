@@ -142,21 +142,21 @@ practical_accuracy = ((np.abs(y_test_true_orig - y_test_pred_orig) / (y_test_tru
 # ================================================================
 import os
 import pickle
+import streamlit as st  # only if you want the Streamlit success message
 
-# Academic Note:
-# Saving the trained pipeline as a .pkl file ensures reproducibility and supports Git LFS tracking.
-# This aligns with best practices in ML research for version control, auditability, and stakeholder access.
-
+# Ensure models folder exists
 os.makedirs("models", exist_ok=True)
+
+# Path to save the pipeline
 pipeline_file = "models/random_forest_pipeline.pkl"
 
+# Save the pipeline
 with open(pipeline_file, "wb") as f:
     pickle.dump(pipeline, f)
 
-st.success(f"✅ Trained pipeline saved at: {pipeline_file}")
-
-
-
+print(f"✅ Pipeline saved at {pipeline_file}")
+# Optional Streamlit message if running in Streamlit
+# st.success(f"✅ Trained pipeline saved at: {pipeline_file}")
 
 # ================================================================
 # ✅ Global SHAP Precomputation
@@ -171,31 +171,57 @@ feature_names = list(num_features) + list(cat_names)
 # ================================================================
 # ✅ Single Prediction Tab
 # ================================================================
+# ================================================================
+# ✅ Single Prediction Tab (Cleaned Form)
+# ================================================================
 input_data = {}
 pred_price = None
 
 with tabs[1]:
     st.subheader("🧾 Single Prediction Form")
+
+    # Create form
     with st.form("predict_form"):
+        # Dynamic inputs for features
         for feat in features:
             if feat in num_features:
                 if feat == "seats":
-                    input_data[feat] = st.number_input(f"{feat.title()}", min_value=1, max_value=20, value=5, step=1)
+                    input_data[feat] = st.number_input(
+                        label=f"{feat.title()}",
+                        min_value=1,
+                        max_value=20,
+                        value=5,
+                        step=1
+                    )
                 else:
-                    input_data[feat] = st.number_input(f"{feat.title()}", min_value=0.0, value=0.0, step=0.1)
+                    input_data[feat] = st.number_input(
+                        label=f"{feat.title()}",
+                        min_value=0.0,
+                        value=0.0,
+                        step=0.1
+                    )
             else:
-                input_data[feat] = st.selectbox(f"{feat.title()}", df[feat].dropna().unique().tolist())
-        submit = st.form_submit_button("🔮 Predict Price")
+                input_data[feat] = st.selectbox(
+                    label=f"{feat.title()}",
+                    options=df[feat].dropna().unique().tolist()
+                )
 
-    if submit:
+        # Submit button
+        submitted = st.form_submit_button("🔮 Predict Price")
+
+    # Process prediction only after form submission
+    if submitted:
         try:
+            # Convert input to DataFrame
             input_df = pd.DataFrame([input_data])
+
+            # Predict log price, then transform back
             log_pred = pipeline.predict(input_df)
             pred_price = float(np.expm1(log_pred)[0])
 
             # Luxury adjustment
-            luxury_brands = {"bmw","audi","mercedes","porsche","jaguar","land rover"}
-            brand_val = str(input_data.get("brand","")).lower()
+            luxury_brands = {"bmw", "audi", "mercedes", "porsche", "jaguar", "land rover"}
+            brand_val = str(input_data.get("brand", "")).lower()
             if luxury_mode and brand_val in luxury_brands:
                 pred_price *= 1.12
                 st.success("💎 Luxury brand adjustment applied (+12%)")
@@ -203,33 +229,25 @@ with tabs[1]:
                 pred_price *= 1.03
                 st.info("✅ Market premium applied (+3%)")
 
+            # Display prediction
             st.markdown(f"### 💰 Predicted Price: **₹{pred_price:,.0f}**")
 
-            # Metrics
-            age = input_data.get("vehicle_age",0)
-            km = input_data.get("km_driven",0)
-            est_depr_pct = age*8.0
-            cost_per_km = pred_price/(km+1)
-            c1,c2,c3 = st.columns(3)
+            # Example derived metrics
+            age = input_data.get("vehicle_age", 0)
+            km = input_data.get("km_driven", 0)
+            est_depr_pct = age * 8.0
+            cost_per_km = pred_price / (km + 1)
+            c1, c2, c3 = st.columns(3)
             c1.metric("Estimated Depreciation (ann.)", f"{est_depr_pct:.1f}%")
             c2.metric("Estimated Cost per km", f"₹{cost_per_km:,.2f}")
-            c3.metric("Value Category", "Premium" if pred_price>df['price_orig'].median() else "Value")
+            c3.metric(
+                "Value Category",
+                "Premium" if pred_price > df['price_orig'].median() else "Value"
+            )
 
-            # Local SHAP
-            single_tr = pipeline.named_steps['preprocessor'].transform(input_df)
-            single_shap = explainer.shap_values(single_tr)
-            expl_local = shap.Explanation(values=single_shap[0],
-                                          base_values=explainer.expected_value,
-                                          data=single_tr[0])
-            plt.figure(figsize=(8,4))
-            shap.waterfall_plot(expl_local, show=False)
-            plt.tight_layout()
-            plt.savefig("shap_local.png", bbox_inches="tight")
-            plt.close()
-            st.image("shap_local.png", caption="Local SHAP Waterfall", use_column_width=True)
+        except Exception as e:
+            st.error(f"Prediction error: {e}")
 
-        except Exception as exc:
-            st.error(f"Prediction error: {exc}")
 
 # ================================================================
 # ✅ SHAP Explainability Tab
