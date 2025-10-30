@@ -137,12 +137,26 @@ rmse_real = np.sqrt(mean_squared_error(y_test_true_orig, y_test_pred_orig))
 mae_real = mean_absolute_error(y_test_true_orig, y_test_pred_orig)
 practical_accuracy = ((np.abs(y_test_true_orig - y_test_pred_orig) / (y_test_true_orig + 1e-9)) <= 0.10).mean()
 
-# Save pipeline for reproducibility & Git LFS
+# ================================================================
+# ✅ Save pipeline for reproducibility & Git LFS
+# ================================================================
+import os
+import pickle
+
+# Academic Note:
+# Saving the trained pipeline as a .pkl file ensures reproducibility and supports Git LFS tracking.
+# This aligns with best practices in ML research for version control, auditability, and stakeholder access.
+
 os.makedirs("models", exist_ok=True)
 pipeline_file = "models/random_forest_pipeline.pkl"
+
 with open(pipeline_file, "wb") as f:
     pickle.dump(pipeline, f)
+
 st.success(f"✅ Trained pipeline saved at: {pipeline_file}")
+
+
+
 
 # ================================================================
 # ✅ Global SHAP Precomputation
