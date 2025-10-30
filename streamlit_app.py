@@ -3,8 +3,15 @@
 # Academic Edition — Ready for Deployment & GitHub LFS
 # ================================================================
 
+
+# ================================================================
+# 🚗 Luxury Car Price Predictor — Academic Edition
+# ================================================================
+
+# -----------------------
+# IMPORTS
+# -----------------------
 import os
-import pickle
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -14,10 +21,11 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-from fpdf import FPDF
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 import shap
+from fpdf import FPDF
 import matplotlib.pyplot as plt
+import pickle
 
 # ================================================================
 # ✅ Page Config & Custom CSS
@@ -38,9 +46,9 @@ st.title("🚗 Luxury Car Price Predictor — Academic Edition")
 # ✅ Tabs
 # ================================================================
 tabs = st.tabs([
-    "📊 Data Overview", 
-    "🧾 Single Prediction", 
-    "🔍 SHAP Explainability", 
+    "📊 Data Overview",
+    "🧾 Single Prediction",
+    "🔍 SHAP Explainability",
     "📚 Academic Insights",
     "📄 Export PDF Report"
 ])
@@ -109,10 +117,8 @@ preprocessor = ColumnTransformer([
 # ================================================================
 luxury_mode = st.checkbox("💎 Enable Luxury Mode (High-End Vehicle Focus)", value=False)
 
-# Train-test split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Define pipeline
 pipeline = Pipeline([
     ('preprocessor', preprocessor),
     ('model', RandomForestRegressor(
@@ -123,7 +129,6 @@ pipeline = Pipeline([
     ))
 ])
 
-# Train model
 pipeline.fit(X_train, y_train)
 
 # ================================================================
@@ -132,38 +137,30 @@ pipeline.fit(X_train, y_train)
 y_test_pred_log = pipeline.predict(X_test)
 y_test_true_orig = np.expm1(y_test)
 y_test_pred_orig = np.expm1(y_test_pred_log)
+
 r2_real = r2_score(y_test_true_orig, y_test_pred_orig)
 rmse_real = np.sqrt(mean_squared_error(y_test_true_orig, y_test_pred_orig))
 mae_real = mean_absolute_error(y_test_true_orig, y_test_pred_orig)
 practical_accuracy = ((np.abs(y_test_true_orig - y_test_pred_orig) / (y_test_true_orig + 1e-9)) <= 0.10).mean()
 
 # ================================================================
-# ✅ Save pipeline for reproducibility & Git LFS
+# ✅ Save pipeline
 # ================================================================
-import os
-import pickle
+def save_pipeline(pipeline, filename="models/random_forest_pipeline.pkl"):
+    os.makedirs("models", exist_ok=True)
+    with open(filename, "wb") as f:
+        pickle.dump(pipeline, f)
+    st.success(f"✅ Trained pipeline saved at: {filename}")
 
-# Academic Note:
-# Saving the trained pipeline as a .pkl file ensures reproducibility and supports Git LFS tracking.
-# This aligns with best practices in ML research for version control, auditability, and stakeholder access.
-
-os.makedirs("models", exist_ok=True)
-pipeline_file = "models/random_forest_pipeline.pkl"
-
-with open(pipeline_file, "wb") as f:
-    pickle.dump(pipeline, f)
-
-st.success(f"✅ Trained pipeline saved at: {pipeline_file}")
-
-
-
+save_pipeline(pipeline)
 
 # ================================================================
-# ✅ Global SHAP Precomputation
+# ✅ SHAP Precomputation
 # ================================================================
 explainer = shap.TreeExplainer(pipeline.named_steps['model'])
 X_train_tr = pipeline.named_steps['preprocessor'].transform(X_train)
-sample = X_train_tr[:200]  # limit for performance
+sample_size = min(200, X_train_tr.shape[0])
+sample = X_train_tr[:sample_size]
 shap_values = explainer.shap_values(sample)
 cat_names = pipeline.named_steps['preprocessor'].named_transformers_['cat'].get_feature_names_out(cat_features)
 feature_names = list(num_features) + list(cat_names)
@@ -180,14 +177,14 @@ with tabs[1]:
         for feat in features:
             if feat in num_features:
                 if feat == "seats":
-                    input_data[feat] = st.number_input(f"{feat.title()}", min_value=1, max_value=20, value=5, step=1)
+                    input_data[feat] = st.number_input(feat.title(), min_value=1, max_value=20, value=5, step=1)
                 else:
-                    input_data[feat] = st.number_input(f"{feat.title()}", min_value=0.0, value=0.0, step=0.1)
+                    input_data[feat] = st.number_input(feat.title(), min_value=0.0, value=0.0, step=0.1)
             else:
-                input_data[feat] = st.selectbox(f"{feat.title()}", df[feat].dropna().unique().tolist())
-        submit = st.form_submit_button("🔮 Predict Price")
+                input_data[feat] = st.selectbox(feat.title(), options=df[feat].dropna().unique().tolist())
+        submitted = st.form_submit_button("🔮 Predict Price")
 
-    if submit:
+    if submitted:
         try:
             input_df = pd.DataFrame([input_data])
             log_pred = pipeline.predict(input_df)
@@ -195,7 +192,7 @@ with tabs[1]:
 
             # Luxury adjustment
             luxury_brands = {"bmw","audi","mercedes","porsche","jaguar","land rover"}
-            brand_val = str(input_data.get("brand","")).lower()
+            brand_val = str(input_data.get("brand", "")).lower()
             if luxury_mode and brand_val in luxury_brands:
                 pred_price *= 1.12
                 st.success("💎 Luxury brand adjustment applied (+12%)")
@@ -205,31 +202,18 @@ with tabs[1]:
 
             st.markdown(f"### 💰 Predicted Price: **₹{pred_price:,.0f}**")
 
-            # Metrics
-            age = input_data.get("vehicle_age",0)
-            km = input_data.get("km_driven",0)
-            est_depr_pct = age*8.0
-            cost_per_km = pred_price/(km+1)
-            c1,c2,c3 = st.columns(3)
+            # Derived metrics
+            age = input_data.get("vehicle_age", 0)
+            km = input_data.get("km_driven", 0)
+            est_depr_pct = age * 8.0
+            cost_per_km = pred_price / (km + 1)
+            c1, c2, c3 = st.columns(3)
             c1.metric("Estimated Depreciation (ann.)", f"{est_depr_pct:.1f}%")
             c2.metric("Estimated Cost per km", f"₹{cost_per_km:,.2f}")
-            c3.metric("Value Category", "Premium" if pred_price>df['price_orig'].median() else "Value")
+            c3.metric("Value Category", "Premium" if pred_price > df['price_orig'].median() else "Value")
 
-            # Local SHAP
-            single_tr = pipeline.named_steps['preprocessor'].transform(input_df)
-            single_shap = explainer.shap_values(single_tr)
-            expl_local = shap.Explanation(values=single_shap[0],
-                                          base_values=explainer.expected_value,
-                                          data=single_tr[0])
-            plt.figure(figsize=(8,4))
-            shap.waterfall_plot(expl_local, show=False)
-            plt.tight_layout()
-            plt.savefig("shap_local.png", bbox_inches="tight")
-            plt.close()
-            st.image("shap_local.png", caption="Local SHAP Waterfall", use_column_width=True)
-
-        except Exception as exc:
-            st.error(f"Prediction error: {exc}")
+        except Exception as e:
+            st.error(f"Prediction error: {e}")
 
 # ================================================================
 # ✅ SHAP Explainability Tab
@@ -237,10 +221,7 @@ with tabs[1]:
 with tabs[2]:
     st.subheader("🔍 Global SHAP Explainability")
     st.markdown("""
-    SHAP (SHapley Additive exPlanations) quantifies **how each feature contributes** to model predictions.
-    - Positive SHAP → pushes price **up**
-    - Negative SHAP → pushes price **down**
-    - Academic Relevance: Enhances interpretability, aligning ML with ethical AI principles.
+    SHAP (SHapley Additive exPlanations) quantifies **feature contributions** to predictions.
     """)
     plt.figure(figsize=(8,4))
     shap.summary_plot(shap_values, sample, feature_names=feature_names, show=False)
@@ -254,66 +235,43 @@ with tabs[2]:
 # ================================================================
 with tabs[3]:
     st.subheader("📚 Academic Insights")
-    st.markdown("""
-    ### 🎯 Research Objectives
-    - Apply ML to uncover **automotive price determinants**.
-    - Evaluate model interpretability for ethical AI compliance.
-    - Enable transparency in data-driven valuation processes.
-    """)
-
     st.markdown("### 📈 Model Evaluation Metrics")
     c1, c2, c3 = st.columns(3)
     c1.metric("RMSE", f"{rmse_real:.2f}")
     c2.metric("R² Score", f"{r2_real:.3f}")
     c3.metric("MAE", f"{mae_real:.2f}")
 
-    st.markdown("""
-    - **RMSE (Root Mean Squared Error)** → Penalizes large deviations.
-    - **R² Score** → Indicates model’s explanatory power.
-    - **MAE** → Mean absolute prediction error (real-world interpretability).
-    """)
-
     st.markdown("### 💎 Luxury Market Analysis")
-    luxury_brands = ["BMW", "Mercedes-Benz", "Audi", "Jaguar", "Land Rover"]
-    df["Luxury Mode"] = df["brand"].apply(lambda x: "Luxury" if x in luxury_brands else "Standard")
+    luxury_brands_list = ["BMW","Mercedes-Benz","Audi","Jaguar","Land Rover"]
+    df["Luxury Mode"] = df["brand"].apply(lambda x: "Luxury" if x in luxury_brands_list else "Standard")
     st.bar_chart(df["Luxury Mode"].value_counts())
-
-    st.markdown("""
-    - **Insight**: Luxury vehicles show non-linear depreciation; Random Forest models capture this effect well.
-    - **Academic Justification**: Non-linearity supports the use of ensemble methods over linear regressors.
-    """)
 
 # ================================================================
 # ✅ PDF Export Tab
 # ================================================================
 with tabs[4]:
     st.subheader("📄 Export Academic Report as PDF")
-    if pred_price is not None:
-        export_pdf = st.button("🖨️ Generate PDF Report")
-        if export_pdf:
+    if pred_price:
+        if st.button("🖨️ Generate PDF Report"):
             pdf = FPDF()
             pdf.add_page()
-            pdf.set_auto_page_break(auto=True, margin=15)
-
+            pdf.set_auto_page_break(True, margin=15)
             pdf.set_font("Helvetica", "B", 16)
-            pdf.set_text_color(45, 45, 45)
             pdf.cell(0, 10, "Luxury Car Price Prediction Report", ln=True, align="C")
             pdf.ln(5)
             pdf.set_font("Helvetica", "", 11)
-            pdf.cell(0, 10, f"Timestamp: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
+            pdf.cell(0, 10, f"Timestamp: {pd.Timestamp.now()}", ln=True)
             pdf.ln(5)
             pdf.cell(0, 10, f"Luxury Mode Enabled: {'Yes' if luxury_mode else 'No'}", ln=True)
             pdf.ln(5)
             pdf.set_font("Helvetica", "B", 12)
             pdf.cell(0, 10, f"Predicted Price: ₹{pred_price:,.0f}", ln=True)
             pdf.ln(5)
-
             pdf.set_font("Helvetica", "", 11)
             pdf.cell(0, 8, "Input Features:", ln=True)
             for k, v in input_data.items():
                 pdf.cell(0, 6, f"  • {k}: {v}", ln=True)
             pdf.ln(5)
-
             pdf.set_font("Helvetica", "B", 12)
             pdf.cell(0, 10, "Model Evaluation Metrics:", ln=True)
             pdf.set_font("Helvetica", "", 11)
@@ -321,40 +279,24 @@ with tabs[4]:
             pdf.cell(0, 8, f"  • R² Score: {r2_real:.3f}", ln=True)
             pdf.cell(0, 8, f"  • MAE: {mae_real:.2f}", ln=True)
             pdf.ln(5)
-
-            if os.path.exists("shap_local.png"):
-                pdf.set_font("Helvetica", "B", 12)
-                pdf.cell(0, 10, "Local SHAP Waterfall:", ln=True)
-                pdf.image("shap_local.png", w=170)
-                pdf.ln(5)
-
             if os.path.exists("shap_summary.png"):
-                pdf.set_font("Helvetica", "B", 12)
                 pdf.cell(0, 10, "Global SHAP Summary:", ln=True)
                 pdf.image("shap_summary.png", w=170)
-                pdf.ln(5)
-
             pdf_path = "luxury_car_report.pdf"
             pdf.output(pdf_path)
-
             with open(pdf_path, "rb") as f:
-                st.download_button(
-                    label="📥 Download PDF Report",
-                    data=f,
-                    file_name=pdf_path,
-                    mime="application/pdf"
-                )
+                st.download_button("📥 Download PDF Report", f, file_name=pdf_path, mime="application/pdf")
     else:
         st.info("Predict a car price first to generate a PDF report.")
 
 # ================================================================
-# 🚀 Academic Deployment Notes
+# 🚀 Deployment Notes
 # ================================================================
 st.markdown("---")
-st.subheader("🚀 Deployment Guide (Academic Notes)")
+st.subheader("🚀 Deployment Guide")
 st.markdown("""
-1. Push the full project to GitHub.
-2. Track model artifacts with **Git LFS**: `git lfs track "models/*.pkl"`.
+1. Push project to GitHub.
+2. Track models via Git LFS: `git lfs track "models/*.pkl"`.
 3. Deploy via [Streamlit Cloud](https://share.streamlit.io).
-4. Academic Note: Deployment ensures **reproducibility**, **transparency**, and **stakeholder accessibility**.
+4. Ensures reproducibility, transparency, and academic rigor.
 """)
