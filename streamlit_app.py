@@ -22,9 +22,10 @@ import shap
 import matplotlib.pyplot as plt
 
 # -----------------------
-# Page config & styles
+# Page setup
 # -----------------------
 st.set_page_config(page_title="Luxury Car Price Predictor", layout="wide")
+
 st.markdown("""
 <style>
 .stApp {background: linear-gradient(to right, #f3f7fb, #ffffff); font-family: 'Segoe UI', sans-serif;}
@@ -35,9 +36,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🚗 Luxury Car Price Predictor — Interactive Academic Edition")
-
-
-
 
 # -----------------------
 # Tabs
@@ -77,12 +75,13 @@ if not dataset_loaded:
     st.stop()
 
 # -----------------------
-# Clean & prepare
+# Data cleaning
 # -----------------------
 df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
 features = ['brand', 'fuel_type', 'transmission_type', 'vehicle_age',
             'km_driven', 'mileage', 'engine', 'max_power', 'seats']
 target = 'selling_price'
+
 missing = [c for c in features + [target] if c not in df.columns]
 if missing:
     st.error(f"❌ Missing required columns: {missing}")
@@ -104,9 +103,10 @@ preprocessor = ColumnTransformer([
 ])
 
 # -----------------------
-# Luxury mode
+# Model training
 # -----------------------
 luxury_mode = st.checkbox("💎 Enable Luxury Mode (High-End Vehicle Focus)", value=False)
+
 model = RandomForestRegressor(
     n_estimators=200 if luxury_mode else 100,
     max_depth=20 if luxury_mode else None,
@@ -119,7 +119,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 pipeline.fit(X_train, y_train)
 
 # -----------------------
-# Evaluate
+# Model evaluation
 # -----------------------
 y_test_pred_log = pipeline.predict(X_test)
 y_test_true_orig = np.expm1(y_test)
@@ -130,22 +130,22 @@ mae_real = mean_absolute_error(y_test_true_orig, y_test_pred_orig)
 practical_accuracy = ((np.abs(y_test_true_orig - y_test_pred_orig) / (y_test_true_orig + 1e-9)) <= 0.10).mean()
 
 # -----------------------
-# Precompute SHAP (global)
+# SHAP Explainability (Global)
 # -----------------------
 preproc = pipeline.named_steps['preprocessor']
 model = pipeline.named_steps['model']
 X_train_tr = preproc.transform(X_train)
 cat_names = preproc.named_transformers_['cat'].get_feature_names_out(cat_features)
 feature_names = list(num_features) + list(cat_names)
+
 explainer = shap.TreeExplainer(model)
-shap_values = explainer.shap_values(X_train_tr)
+sample = X_train_tr[:200]  # limit for performance
+shap_values = explainer.shap_values(sample)
 
 # -----------------------
-# Single Prediction Form
+# 🧾 Single Prediction Tab
 # -----------------------
 input_data = {}
-input_df = None
-pred_price = None
 with tabs[1]:
     st.subheader("🧾 Single Prediction Form")
     with st.form("predict_form"):
@@ -165,7 +165,6 @@ with tabs[1]:
             log_pred = pipeline.predict(input_df)
             pred_price = float(np.expm1(log_pred)[0])
 
-            # Luxury adjustment
             luxury_brands = {"bmw","audi","mercedes","porsche","jaguar","land rover"}
             brand_val = str(input_data.get("brand","")).lower()
             if luxury_mode and brand_val in luxury_brands:
@@ -187,101 +186,90 @@ with tabs[1]:
             c2.metric("Estimated Cost per km", f"₹{cost_per_km:,.2f}")
             c3.metric("Value Category", "Premium" if pred_price>df['price_orig'].median() else "Value")
 
-            # -----------------------
             # Local SHAP
-            # -----------------------
             single_tr = preproc.transform(input_df)
             single_shap = explainer.shap_values(single_tr)
             expl_local = shap.Explanation(values=single_shap[0],
-                                         base_values=explainer.expected_value,
-                                         data=single_tr[0])
+                                          base_values=explainer.expected_value,
+                                          data=single_tr[0])
             plt.figure(figsize=(8,4))
             shap.waterfall_plot(expl_local, show=False)
             plt.tight_layout()
             plt.savefig("shap_local.png", bbox_inches="tight")
             plt.close()
-            st.image("shap_local.png", caption="Local SHAP Waterfall (this prediction)", use_column_width=True)
+            st.image("shap_local.png", caption="Local SHAP Waterfall", use_column_width=True)
 
         except Exception as exc:
             st.error(f"Prediction error: {exc}")
 
 # -----------------------
-# SHAP Explainability Tab
+# 🔍 SHAP Explainability Tab
 # -----------------------
 with tabs[2]:
-    st.subheader("🔍 SHAP Explainability")
-    st.write("### Global Feature Importance")
+    st.subheader("🔍 Global SHAP Explainability")
+    st.markdown("""
+    SHAP (SHapley Additive exPlanations) quantifies **how each feature contributes** to model predictions.
+    - Positive SHAP → pushes price **up**
+    - Negative SHAP → pushes price **down**
+    - Academic Relevance: Enhances interpretability, aligning ML with ethical AI principles.
+    """)
     plt.figure(figsize=(8,4))
-    shap.summary_plot(shap_values, X_train_tr, feature_names=feature_names, show=False)
+    shap.summary_plot(shap_values, sample, feature_names=feature_names, show=False)
     plt.tight_layout()
     plt.savefig("shap_summary.png", bbox_inches="tight")
     plt.close()
     st.image("shap_summary.png", caption="Global SHAP Summary", use_column_width=True)
 
 # -----------------------
-# Academic Insights Tab
+# 📚 Academic Insights Tab
 # -----------------------
 with tabs[3]:
     st.subheader("📚 Academic Insights")
 
-    with st.expander("Why Log-Transform the Target?"):
-        st.markdown("""
-        - Price distributions are often skewed; log-transform reduces skewness.
-        - Stabilizes variance and improves regression performance.
-        - Multiplicative relationships (e.g., vehicle age depreciation) become linear.
-        """)
+    st.markdown("""
+    ### 🎯 Research Objectives
+    - Apply ML to uncover **automotive price determinants**.
+    - Evaluate model interpretability for ethical AI compliance.
+    - Enable transparency in data-driven valuation processes.
+    """)
 
-    with st.expander("Understanding Metrics"):
-        st.markdown(f"""
-        - **R² (original scale)**: {r2_real:.3f} — proportion of variance explained.
-        - **RMSE**: ₹{rmse_real:,.0f} — penalizes large errors more than MAE.
-        - **MAE**: ₹{mae_real:,.0f} — average absolute prediction error.
-        - **Practical Accuracy (±10%)**: {practical_accuracy:.1%} — likelihood of predictions being “close enough” for real-world decisions.
-        """)
+    st.markdown("### 📈 Model Evaluation Metrics")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("RMSE", f"{rmse_real:.2f}")
+    c2.metric("R² Score", f"{r2_real:.3f}")
+    c3.metric("MAE", f"{mae_real:.2f}")
 
-    with st.expander("SHAP Explainability"):
-        st.markdown("""
-        - Global summary plots highlight most important drivers across the dataset.
-        - Local waterfall plots explain individual predictions.
-        - Ensures transparency, fairness, and interpretability in AI-driven price prediction.
-        """)
+    st.markdown("""
+    - **RMSE (Root Mean Squared Error)** → Penalizes large deviations.
+    - **R² Score** → Indicates model’s explanatory power.
+    - **MAE** → Mean absolute prediction error (real-world interpretability).
+    """)
 
-    with st.expander("Luxury Mode Adjustments"):
-        st.markdown("""
-        - Luxury brands (BMW, Audi, Mercedes, Porsche, Jaguar, Land Rover) receive market premium adjustments.
-        - Enhances prediction alignment with real-world high-end car valuations.
-        """)
+    st.markdown("### 💎 Luxury Market Analysis")
+    luxury_brands = ["BMW", "Mercedes-Benz", "Audi", "Jaguar", "Land Rover"]
+    df["Luxury Mode"] = df["brand"].apply(lambda x: "Luxury" if x in luxury_brands else "Standard")
+    st.bar_chart(df["Luxury Mode"].value_counts())
 
-    with st.expander("Next Steps for Academic Research"):
-        st.markdown("""
-        - Collect more labeled data for rare luxury models.
-        - Consider ensemble models or gradient boosting for improved R².
-        - Continuously monitor SHAP explanations to detect biases.
-        - Validate models on new market data before production deployment.
-        """)
-# ======================================
-# ✅ DEPLOY THE APP ONLINE: GUIDE
-# ======================================
-# Academic Note: Cloud deployment aligns with best practices in reproducible research and stakeholder accessibility.
-deployment_guide = """
-Steps to deploy your Streamlit app:
-1. Push your project to a public GitHub repository.
-   - Academic Note: Version control via GitHub supports transparency, collaboration, and reproducibility.
-2. Visit https://share.streamlit.io
-   - Academic Note: Streamlit Share provides free, browser-based hosting for interactive ML dashboards.
-3. Connect your GitHub account and select the repository.
-   - Academic Note: Linking GitHub ensures seamless CI/CD integration and reproducible builds.
-4. Streamlit auto-builds the app in ~2 minutes.
-   - Academic Note: Automated builds reduce setup friction and support rapid stakeholder feedback.
-
-Deployment URL: https://cathyann22-car-price-predictor-streamlit-app-femnbs.streamlit.app/
-Academic Note: Online deployment facilitates peer review, stakeholder engagement, and real-time feedback without requiring local installations.
-"""
+    st.markdown("""
+    - **Insight**: Luxury vehicles show non-linear depreciation; Random Forest models capture this effect well.
+    - **Academic Justification**: Non-linearity supports the use of ensemble methods over linear regressors.
+    """)
 
 # -------------------------------
-# ✅ Render Deployment Guide in App
+# 🚀 Deployment Guide (for Streamlit Cloud)
 # -------------------------------
-# Academic Note: In-app documentation supports user onboarding and promotes methodological transparency.
 st.markdown("---")
-st.subheader("🚀 Deploy the App Online")
-st.markdown(deployment_guide)
+st.subheader("🚀 Deployment Guide")
+
+st.markdown("""
+**Steps to deploy this app:**
+1. Push the full project to a public GitHub repository.  
+2. Go to [Streamlit Cloud](https://share.streamlit.io).  
+3. Connect your GitHub account and select this repository.  
+4. Streamlit builds and deploys automatically.
+
+*Academic Note:*  
+Deployment fosters **reproducibility**, **transparency**, and **stakeholder accessibility**—key tenets of applied AI research.
+""")
+
+
