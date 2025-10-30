@@ -4,7 +4,9 @@
 # ================================================================
 
 
+# -----------------------
 # Import libraries
+# -----------------------
 import os
 from pathlib import Path
 import pandas as pd
@@ -124,7 +126,7 @@ mae_real = mean_absolute_error(y_test_true_orig, y_test_pred_orig)
 practical_accuracy = ((np.abs(y_test_true_orig - y_test_pred_orig) / (y_test_true_orig + 1e-9)) <= 0.10).mean()
 
 # -----------------------
-# Precompute SHAP (global) once
+# Precompute SHAP (global)
 # -----------------------
 preproc = pipeline.named_steps['preprocessor']
 model = pipeline.named_steps['model']
@@ -200,7 +202,7 @@ with tabs[1]:
             st.error(f"Prediction error: {exc}")
 
 # -----------------------
-# SHAP Explainability Tab (uses precomputed global)
+# SHAP Explainability Tab
 # -----------------------
 with tabs[2]:
     st.subheader("🔍 SHAP Explainability")
@@ -217,38 +219,41 @@ with tabs[2]:
 # -----------------------
 with tabs[3]:
     st.subheader("📚 Academic Insights")
+
     with st.expander("Why Log-Transform the Target?"):
         st.markdown("""
         - Price distributions are often skewed; log-transform reduces skewness.
         - Stabilizes variance and improves regression performance.
-        - Multiplicative relationships (e.g., age depreciation) become linear.
+        - Multiplicative relationships (e.g., vehicle age depreciation) become linear.
         """)
+
     with st.expander("Understanding Metrics"):
         st.markdown(f"""
-        - **R² (original scale)**: {r2_real:.3f}
-        - **RMSE**: ₹{rmse_real:,.0f}
-        - **MAE**: ₹{mae_real:,.0f}
-        - **Practical Accuracy (±10%)**: {practical_accuracy:.1%}
+        - **R² (original scale)**: {r2_real:.3f} — proportion of variance explained.
+        - **RMSE**: ₹{rmse_real:,.0f} — penalizes large errors more than MAE.
+        - **MAE**: ₹{mae_real:,.0f} — average absolute prediction error.
+        - **Practical Accuracy (±10%)**: {practical_accuracy:.1%} — likelihood of predictions being “close enough” for real-world decisions.
         """)
+
     with st.expander("SHAP Explainability"):
         st.markdown("""
         - Global summary plots highlight most important drivers across the dataset.
         - Local waterfall plots explain individual predictions.
         - Ensures transparency, fairness, and interpretability in AI-driven price prediction.
         """)
+
     with st.expander("Luxury Mode Adjustments"):
         st.markdown("""
-        - Luxury brands receive market premium adjustments.
+        - Luxury brands (BMW, Audi, Mercedes, Porsche, Jaguar, Land Rover) receive market premium adjustments.
         - Enhances prediction alignment with real-world high-end car valuations.
         """)
+
     with st.expander("Next Steps for Academic Research"):
         st.markdown("""
         - Collect more labeled data for rare luxury models.
         - Consider ensemble models or gradient boosting for improved R².
-        - Monitor SHAP explanations to detect biases.
+        - Continuously monitor SHAP explanations to detect biases.
         - Validate models on new market data before production deployment.
         """)
-
-
 
 
