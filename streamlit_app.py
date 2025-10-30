@@ -1,7 +1,8 @@
-# ================================================================
-# ✅ FULL STREAMLIT PREDICTION + SHAP + 🚗 CAR PRICE PREDICTOR APP
-# ================================================================
+# ✅ Cathy_Annabella_Masentle_Mahumane
 
+# ================================================================
+# 🚗 FULL STREAMLIT PREDICTION + SHAP + CAR PRICE PREDICTOR APP
+# ================================================================
 
 # -----------------------
 # Import libraries
@@ -36,6 +37,9 @@ st.markdown("""
 
 st.title("🚗 Luxury Car Price Predictor — Interactive Academic Edition")
 
+
+
+
 # -----------------------
 # Tabs
 # -----------------------
@@ -46,6 +50,7 @@ tabs = st.tabs(["📊 Data Overview", "🧾 Single Prediction", "🔍 SHAP Expla
 # -----------------------
 try:
     df = pd.read_csv("car_price_dataset.csv")
+    df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
     dataset_loaded = True
 except FileNotFoundError:
     df = None
@@ -56,6 +61,7 @@ with tabs[0]:
     uploaded_file = st.file_uploader("Upload CSV dataset", type=["csv"])
     if uploaded_file:
         df = pd.read_csv(uploaded_file)
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
         dataset_loaded = True
 
     if dataset_loaded:
@@ -254,4 +260,29 @@ with tabs[3]:
         - Continuously monitor SHAP explanations to detect biases.
         - Validate models on new market data before production deployment.
         """)
+# ======================================
+# ✅ DEPLOY THE APP ONLINE: GUIDE
+# ======================================
+# Academic Note: Cloud deployment aligns with best practices in reproducible research and stakeholder accessibility.
+deployment_guide = """
+Steps to deploy your Streamlit app:
+1. Push your project to a public GitHub repository.
+   - Academic Note: Version control via GitHub supports transparency, collaboration, and reproducibility.
+2. Visit https://share.streamlit.io
+   - Academic Note: Streamlit Share provides free, browser-based hosting for interactive ML dashboards.
+3. Connect your GitHub account and select the repository.
+   - Academic Note: Linking GitHub ensures seamless CI/CD integration and reproducible builds.
+4. Streamlit auto-builds the app in ~2 minutes.
+   - Academic Note: Automated builds reduce setup friction and support rapid stakeholder feedback.
 
+Deployment URL: https://cathyann22-car-price-predictor-streamlit-app-femnbs.streamlit.app/
+Academic Note: Online deployment facilitates peer review, stakeholder engagement, and real-time feedback without requiring local installations.
+"""
+
+# -------------------------------
+# ✅ Render Deployment Guide in App
+# -------------------------------
+# Academic Note: In-app documentation supports user onboarding and promotes methodological transparency.
+st.markdown("---")
+st.subheader("🚀 Deploy the App Online")
+st.markdown(deployment_guide)
