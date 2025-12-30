@@ -1,0 +1,183 @@
+import streamlit as st
+import pandas as pd
+import joblib
+import shap
+import matplotlib.pyplot as plt
+
+# --- Load model and optional preprocessor ---
+model = joblib.load("car_price_model.pkl")
+# Uncomment if you have a preprocessor
+# preprocessor = joblib.load("preprocessor.pkl")
+
+# --- Define brand encoding ---
+brand_options = ["Toyota", "BMW", "Mercedes", "Hyundai"]
+brand_encoding = {brand: idx for idx, brand in enumerate(brand_options)}
+
+def main():
+    st.set_page_config(page_title="Car Price Predictor", layout="centered")
+    st.title("🚗 Car Price Prediction Dashboard")
+    st.write("Estimate your car's resale value with luxury mode and diagnostics.")
+
+    # --- Input Section ---
+    st.subheader("🔧 Input Car Details")
+    selected_brand = st.selectbox("Select Car Brand", brand_options)
+    brand_encoded = brand_encoding[selected_brand]
+
+    year = st.slider("Year of Manufacture", 2000, 2025, 2015)
+    mileage = st.number_input("Mileage (in km)", min_value=0)
+    luxury_mode = st.selectbox("Luxury Mode", ["Yes", "No"])
+    luxury_flag = 1 if luxury_mode == "Yes" else 0
+
+    # --- Prediction Trigger ---
+    if st.button("🔍 Predict Price"):
+        # Create input DataFrame
+        sample_df = pd.DataFrame({
+            "brand": [brand_encoded],
+            "year": [year],
+            "mileage": [mileage],
+            "luxury_mode": [luxury_flag]
+        })
+
+        # Optional: Apply preprocessing
+        # processed_df = preprocessor.transform(sample_df)
+        # prediction_input = processed_df
+        prediction_input = sample_df  # if no preprocessor
+
+        # --- Run Prediction ---
+        predicted_price = model.predict(prediction_input)[0]
+        st.metric("💰 Estimated Price", f"₹ {predicted_price:,.0f}")
+
+        # --- SHAP Diagnostics ---
+        st.subheader("📊 Feature Importance (SHAP)")
+        explainer = shap.Explainer(model.predict, prediction_input)
+        shap_values = explainer(prediction_input)
+
+        fig, ax = plt.subplots()
+        shap.plots.bar(shap_values, show=False)
+        st.pyplot(fig)
+
+        # --- Error Segmentation Placeholder ---
+        st.subheader("🧪 Error Segmentation")
+        st.write("This section will show error clusters once test data is integrated.")
+
+if __name__ == "__main__":
+    main()
+
+car_name = st.selectbox("Car Name", car_names)
+model = st.selectbox("Model", models)
+fuel_type = st.selectbox("Fuel Type", fuel_types)
+transmission_type = st.selectbox("Transmission Type", transmissions)
+
+seller_type = st.selectbox("Seller Type", seller_types)
+engine = st.number_input("Engine (CC)", min_value=500)
+max_power = st.number_input("Max Power (bhp)", min_value=20.0)
+seats = st.selectbox("Seats", [2, 4, 5, 6, 7])
+vehicle_age = st.slider("Vehicle Age", 0, 20)
+km_driven = st.number_input("Kilometers Driven", min_value=0)
+
+import streamlit as st
+import pandas as pd
+import joblib
+
+def main():
+    st.title("Car Price Predictor")
+
+    # Collect user inputs
+    car_name = st.selectbox("Car Name", ["Maruti", "Hyundai", "Honda", "Toyota"])
+    model = st.selectbox("Model", ["Swift", "i20", "City", "Corolla"])
+    fuel_type = st.selectbox("Fuel Type", ["Petrol", "Diesel", "CNG", "Electric"])
+    transmission_type = st.selectbox("Transmission", ["Manual", "Automatic"])
+    seller_type = st.selectbox("Seller Type", ["Dealer", "Individual", "Trustmark Dealer"])
+    engine = st.number_input("Engine (CC)", min_value=500, max_value=5000, step=100)
+    max_power = st.number_input("Max Power (bhp)", min_value=20.0, max_value=500.0, step=1.0)
+    seats = st.selectbox("Seats", [2, 4, 5, 6, 7])
+    vehicle_age = st.slider("Vehicle Age (years)", 0, 20)
+    km_driven = st.number_input("Kilometers Driven", min_value=0, step=1000)
+
+    # Create input DataFrame
+    input_dict = {
+        'car_name': [car_name],
+        'model': [model],
+        'fuel_type': [fuel_type],
+        'transmission_type': [transmission_type],
+        'seller_type': [seller_type],
+        'engine': [engine],
+        'max_power': [max_power],
+        'seats': [seats],
+        'vehicle_age': [vehicle_age],
+        'km_driven': [km_driven]
+    }
+
+    prediction_input = pd.DataFrame(input_dict)
+
+car_names = ["Maruti", "Hyundai", "Honda", "Toyota", "Ford", "BMW", "Audi", "Mercedes"]
+car_name = st.selectbox("Car Name", car_names)
+
+models = ["Swift", "i20", "City", "Corolla", "Figo", "X5", "A4", "C-Class"]
+fuel_types = ["Petrol", "Diesel", "CNG", "Electric"]
+transmissions = ["Manual", "Automatic"]
+seller_types = ["Dealer", "Individual", "Trustmark Dealer"]
+
+model = st.selectbox("Model", models)
+fuel_type = st.selectbox("Fuel Type", fuel_types)
+transmission_type = st.selectbox("Transmission Type", transmissions)
+seller_type = st.selectbox("Seller Type", seller_types)
+
+df = pd.read_csv("car_price_dataset.csv")
+
+car_names = df["car_name"].dropna().unique().tolist()
+models = df["model"].dropna().unique().tolist()
+fuel_types = df["fuel_type"].dropna().unique().tolist()
+transmissions = df["transmission_type"].dropna().unique().tolist()
+seller_types = df["seller_type"].dropna().unique().tolist()
+
+    # Load model and predict
+    model = joblib.load("car_price_model.pkl")
+    predicted_price = model.predict(prediction_input)[0]
+
+    st.success(f"Predicted Price: ₹{predicted_price:,.2f}")
+
+if __name__ == "__main__":
+    main()
+
+car_name = st.selectbox("Car Name", ["Maruti", "Hyundai", "Honda", "Toyota"])
+model = st.selectbox("Model", ["Swift", "i20", "City", "Corolla"])
+fuel_type = st.selectbox("Fuel Type", ["Petrol", "Diesel", "CNG", "Electric"])
+transmission_type = st.selectbox("Transmission Type", ["Manual", "Automatic"])
+seller_type = st.selectbox("Seller Type", ["Dealer", "Individual", "Trustmark Dealer"])
+engine = st.number_input("Engine (CC)", min_value=500, max_value=5000, step=100)
+max_power = st.number_input("Max Power (bhp)", min_value=20.0, max_value=500.0, step=1.0)
+seats = st.selectbox("Seats", [2, 4, 5, 6, 7])
+vehicle_age = st.slider("Vehicle Age (years)", 0, 20)
+km_driven = st.number_input("Kilometers Driven", min_value=0, step=1000)
+
+import pandas as pd
+
+input_dict = {
+    'car_name': [car_name],
+    'model': [model],
+    'fuel_type': [fuel_type],
+    'transmission_type': [transmission_type],
+    'seller_type': [seller_type],
+    'engine': [engine],
+    'max_power': [max_power],
+    'seats': [seats],
+    'vehicle_age': [vehicle_age],
+    'km_driven': [km_driven]
+}
+
+prediction_input = pd.DataFrame(input_dict)
+car_names = ["Maruti", "Hyundai", "Honda", "Toyota", "Ford", "BMW", "Audi", "Mercedes"]
+
+car_name = st.selectbox("Car Name", car_names)
+
+models = ["Swift", "i20", "City", "Corolla"]
+fuel_types = ["Petrol", "Diesel", "CNG", "Electric"]
+transmissions = ["Manual", "Automatic"]
+seller_types = ["Dealer", "Individual", "Trustmark Dealer"]
+
+car_name = st.selectbox("Car Name", car_names)
+models = ["Swift", "i20", "City", "Corolla", "Figo", "X5", "A4", "C-Class"]
+fuel_types = ["Petrol", "Diesel", "CNG", "Electric"]
+transmissions = ["Manual", "Automatic"]
+seller_types = ["Dealer", "Individual", "Trustmark Dealer"]

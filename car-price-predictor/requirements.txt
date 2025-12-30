@@ -1,0 +1,27 @@
+# Core app framework
+streamlit>=1.30.0          # Web app interface
+
+# Data manipulation
+pandas>=2.0.0              # DataFrames and CSV handling
+numpy>=1.24.0              # Numerical operations
+
+# Machine learning
+scikit-learn>=1.3.0        # Model training, pipelines, metrics
+joblib>=1.3.0              # Model serialization (save/load)
+
+# Model interpretability
+shap>=0.44.0               # SHAP values for feature impact
+streamlit-shap>=0.0.5      # SHAP integration for Streamlit
+
+# Visualization
+matplotlib>=3.7.0          # SHAP plots and other charts
+
+# Optional: PDF export and enhanced visuals
+fpdf>=1.7.2                # Generate PDF reports (if used)
+seaborn>=0.12.2            # Optional: advanced plotting
+
+# Optional: diagnostics or retraining scripts
+# xgboost>=1.7.6           # If using XGBoost models
+# lightgbm>=4.1.0          # If using LightGBM models
+
+
