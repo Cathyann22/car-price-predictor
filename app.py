@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
  # 🚗 STREAMLIT APP
 
 import streamlit as st
@@ -60,12 +60,12 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-=======
+
 # 🚗 Car Price Prediction App — Streamlit + Diagnostics
 
 
 # Imports
-# ============================================================
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -75,7 +75,7 @@ import matplotlib.pyplot as plt
 from streamlit_shap import st_shap
 
 # Load Trained Pipeline
-# ============================================================
+
 try:
     pipeline = joblib.load("best_random_forest_pipeline.pkl")
     feature_list = joblib.load("model_features.pkl")
@@ -84,11 +84,10 @@ except FileNotFoundError:
     st.stop()
 
 # 🏷️ App Title
-# ============================================================
+
 st.title("🚗 Car Price Prediction App")
 
 # 📋 Sidebar Inputs
-# ============================================================
 st.sidebar.header("Enter Car Details")
 
 engine = st.sidebar.number_input("Engine (cc)", min_value=500, max_value=5000, value=1500)
@@ -100,7 +99,7 @@ seller_type = st.sidebar.selectbox("Seller Type", ['Dealer', 'Individual', 'Trus
 brand = st.sidebar.selectbox("Brand", ['Maruti', 'Hyundai', 'Honda', 'Toyota', 'BMW', 'Audi'])
 
 # Prediction Trigger
-# ============================================================
+
 if st.sidebar.button("Predict Price"):
 
     # ✅ Prepare input
@@ -131,7 +130,7 @@ if st.sidebar.button("Predict Price"):
         st.stop()
 
     # abs for Prediction & Diagnostics
-    # ============================================================
+    
     tab1, tab2, tab3 = st.tabs(["🔮 Prediction", "💎 SHAP Audit", "📊 Global Summary"])
 
     # Prediction Output
@@ -164,4 +163,4 @@ if st.sidebar.button("Predict Price"):
             st.image("shap_summary.png", caption="SHAP Summary Plot", use_column_width=True)
         except Exception as e:
             st.warning(f"SHAP summary plot unavailable: {e}")
->>>>>>> 21dcff5862ecc2b96496a829921c833c0debae11
+
